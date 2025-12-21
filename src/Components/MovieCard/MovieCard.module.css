@@ -1,0 +1,45 @@
+/* src/Components/MovieCard/MovieCard.module.css */
+.movieCard {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.movieCard:hover {
+  transform: translateY(-6px);
+  background: var(--bg-card-hover);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+
+.moviePoster {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;   /* fixed card proportion */
+  object-fit: cover;
+}
+
+.movieTitle {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 10px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .movieTitle {
+    font-size: 12px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .movieTitle {
+    font-size: 11px;
+    padding: 6px;
+  }
+}

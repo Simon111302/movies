@@ -1,0 +1,460 @@
+.playerArea {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.98);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.playerContainer {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.playerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 0 16px;
+  position: sticky;
+  top: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  z-index: 10;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 0;
+  margin-top: -20px;
+  padding-top: 24px;
+}
+
+.playerTitle {
+  color: var(--accent);
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 2px 8px rgba(229, 9, 20, 0.3);
+  letter-spacing: -0.5px;
+  transition: all 0.3s ease;
+}
+
+.playerTitle:hover {
+  text-shadow: 0 2px 12px rgba(229, 9, 20, 0.5);
+}
+
+.closeBtn {
+  background: rgba(20, 20, 20, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.closeBtn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.closeIcon {
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  display: block;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.3s ease;
+}
+
+.closeBtn:hover {
+  background: rgba(229, 9, 20, 0.9);
+  border-color: var(--accent);
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 6px 20px rgba(229, 9, 20, 0.4);
+}
+
+.closeBtn:hover .closeIcon {
+  transform: rotate(-90deg);
+}
+
+.closeBtn:hover::before {
+  width: 100%;
+  height: 100%;
+}
+
+.closeBtn:active {
+  transform: scale(1.05) rotate(90deg);
+  box-shadow: 0 4px 16px rgba(229, 9, 20, 0.3);
+}
+
+.iframeWrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 aspect ratio */
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  animation: scaleIn 0.4s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.videoIframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #000;
+}
+
+.serverSwitcher {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px;
+  background: rgba(20, 20, 20, 0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.serverBtn {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.serverBtn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.serverBtn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.detailsContainer {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 24px;
+  background: rgba(20, 20, 20, 0.4);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.detailsPoster {
+  width: 180px;
+  min-width: 180px;
+  height: 270px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.detailsText {
+  flex: 1;
+}
+
+.detailsOverview {
+  color: var(--text-muted);
+  line-height: 1.7;
+  font-size: 15px;
+  margin: 0;
+  text-align: justify;
+}
+
+.readMoreBtn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: 0;
+  margin-left: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.readMoreBtn:hover {
+  color: #c40812;
+}
+
+/* Adblocker Warning */
+.adblockWarning {
+  background: linear-gradient(135deg, #ff3c3c 0%, #c40812 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.warningContent {
+  color: white;
+}
+
+.warningContent strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.warningContent p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.95;
+}
+
+.warningActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dismissBtn,
+.retryBtn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dismissBtn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.dismissBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.retryBtn {
+  background: white;
+  color: var(--accent);
+}
+
+.retryBtn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .playerContainer {
+    padding: 10px;
+    gap: 16px;
+  }
+
+  .playerHeader {
+    padding: 15px 0 10px;
+    margin-top: -10px;
+    padding-top: 15px;
+  }
+
+  .playerTitle {
+    font-size: 18px;
+  }
+
+  .closeBtn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .closeIcon {
+    font-size: 24px;
+  }
+
+  .detailsContainer {
+    flex-direction: column;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .detailsPoster {
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  .iframeWrapper {
+    border-radius: 12px;
+  }
+
+  .serverSwitcher {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .adblockWarning {
+    padding: 12px 16px;
+  }
+
+  .warningContent strong {
+    font-size: 14px;
+  }
+
+  .warningContent p {
+    font-size: 13px;
+  }
+
+  .warningActions {
+    flex-direction: column;
+  }
+
+  .dismissBtn,
+  .retryBtn {
+    width: 100%;
+  }
+
+  .serverBtn {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
+  .detailsOverview {
+    font-size: 14px;
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .playerContainer {
+    padding: 8px;
+    gap: 12px;
+  }
+
+  .playerHeader {
+    padding: 12px 0 8px;
+    margin-top: -8px;
+    padding-top: 12px;
+  }
+
+  .playerTitle {
+    font-size: 16px;
+  }
+
+  .closeBtn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .closeIcon {
+    font-size: 20px;
+  }
+
+  .detailsContainer {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .detailsPoster {
+    max-width: 150px;
+  }
+
+  .detailsOverview {
+    font-size: 13px;
+  }
+
+  .serverSwitcher {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .serverBtn {
+    font-size: 10px;
+    padding: 5px 10px;
+  }
+
+  .adblockWarning {
+    padding: 10px 12px;
+  }
+
+  .warningContent strong {
+    font-size: 13px;
+  }
+
+  .warningContent p {
+    font-size: 12px;
+  }
+}
+
