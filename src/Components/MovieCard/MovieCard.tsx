@@ -8,7 +8,7 @@ export type Movie = {
   overview?: string;
   releaseDate?: string;
   voteAverage?: number;
-};
+};    
 
 type Props = {
   movie: Movie;

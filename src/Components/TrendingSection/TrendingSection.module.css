@@ -1,10 +1,12 @@
 /* src/Components/TrendingSection/TrendingSection.module.css */
 
+
 /* your existing section */
 .section {
   width: 100%;
   margin-top: 24px;
 }
+
 
 /* your existing header */
 .sectionHeader {
@@ -13,6 +15,7 @@
   align-items: center;
   gap: 10px;
 }
+
 
 .sectionHeader h2 {
   font-size: 20px;
@@ -23,6 +26,7 @@
   flex-wrap: wrap;
 }
 
+
 @media (max-width: 768px) {
   .sectionHeader h2 {
     font-size: 18px;
@@ -30,11 +34,13 @@
   }
 }
 
+
 @media (max-width: 480px) {
   .sectionHeader h2 {
     font-size: 16px;
   }
 }
+
 
 .genreBadge {
   font-size: 12px;
@@ -46,12 +52,14 @@
   white-space: nowrap;
 }
 
+
 @media (max-width: 480px) {
   .genreBadge {
     font-size: 10px;
     padding: 3px 8px;
   }
 }
+
 
 .loading {
   text-align: center;
@@ -60,12 +68,14 @@
   font-size: 16px;
 }
 
+
 @media (max-width: 480px) {
   .loading {
     padding: 30px 20px;
     font-size: 14px;
   }
 }
+
 
 .noResults {
   text-align: center;
@@ -74,12 +84,14 @@
   font-size: 16px;
 }
 
+
 @media (max-width: 480px) {
   .noResults {
     padding: 40px 16px;
     font-size: 14px;
   }
 }
+
 
 /* your existing bar */
 .sectionBar {
@@ -89,6 +101,7 @@
   background: var(--accent);
 }
 
+
 /* NEW: layout wrapper (posters | details) */
 .layout {
   display: grid;
@@ -96,10 +109,12 @@
   gap: 32px;
 }
 
+
 /* When a movie is selected, switch to two-column layout */
 .layoutWithDetails {
   grid-template-columns: 3fr 2fr; /* posters | details */
 }
+
 
 /* your grid of posters (unchanged, just used inside .layout) */
 .movieGrid {
@@ -108,12 +123,14 @@
   gap: 24px 24px;
 }
 
+
 @media (max-width: 1024px) {
   .movieGrid {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 20px;
   }
 }
+
 
 @media (max-width: 768px) {
   .movieGrid {
@@ -122,6 +139,7 @@
   }
 }
 
+
 @media (max-width: 480px) {
   .movieGrid {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -129,12 +147,14 @@
   }
 }
 
+
 @media (max-width: 360px) {
   .movieGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
 }
+
 
 /* NEW: details panel */
 .details {
@@ -154,6 +174,7 @@
   flex-direction: column;
 }
 
+
 .detailsContent {
   padding: 20px 24px;
   overflow-y: auto;
@@ -163,22 +184,27 @@
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
+
 .detailsContent::-webkit-scrollbar {
   width: 6px;
 }
 
+
 .detailsContent::-webkit-scrollbar-track {
   background: transparent;
 }
+
 
 .detailsContent::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
 }
 
+
 .detailsContent::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
 
 .detailsActions {
   padding: 16px 24px;
@@ -190,22 +216,27 @@
   flex-shrink: 0;
 }
 
+
 .details::-webkit-scrollbar {
   width: 6px;
 }
 
+
 .details::-webkit-scrollbar-track {
   background: transparent;
 }
+
 
 .details::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
 }
 
+
 .details::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
 
 @keyframes slideIn {
   from {
@@ -218,17 +249,20 @@
   }
 }
 
+
 .detailsTitle {
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 8px;
 }
 
+
 .detailsMeta {
   font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 6px;
 }
+
 
 .detailsOverview {
   font-size: 14px;
@@ -238,6 +272,7 @@
   color: var(--text-muted);
 }
 
+
 /* responsive: stack on small screens */
 @media (max-width: 900px) {
   .layout {
@@ -245,75 +280,104 @@
     gap: 20px;
   }
 
+
   .details {
     position: relative;
     top: 0;
     max-height: none;
     margin-top: 20px;
+    animation: slideDown 0.4s ease-out forwards;
   }
 }
+
+
+@keyframes slideDown {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 
 @media (max-width: 768px) {
   .layout {
     gap: 16px;
   }
 
+
   .detailsContent {
     padding: 16px;
   }
 
+
   .detailsActions {
     padding: 12px 16px;
   }
+
 
   .detailsTitle {
     font-size: 18px;
   }
 }
 
+
 @media (max-width: 480px) {
   .section {
     margin-top: 16px;
   }
 
+
   .sectionHeader {
     margin-bottom: 16px;
   }
 
+
   .layout {
     gap: 12px;
   }
+
 
   .details {
     margin-top: 16px;
     border-radius: 12px;
   }
 
+
   .detailsContent {
     padding: 12px;
   }
+
 
   .detailsActions {
     padding: 10px 12px;
     gap: 6px;
   }
 
+
   .detailsTitle {
     font-size: 16px;
   }
+
 
   .detailsMeta {
     font-size: 12px;
   }
 
+
   .detailsOverview {
     font-size: 13px;
   }
+
 
   .watchButton {
     padding: 10px 16px;
     font-size: 13px;
   }
+
 
   .closeButton {
     padding: 7px 14px;
@@ -322,9 +386,11 @@
 }
 /* Add to TrendingSection.module.css */
 
+
 .providers {
   margin-top: 16px;
 }
+
 
 .providers h3 {
   font-size: 14px;
@@ -332,11 +398,13 @@
   color: var(--text-muted);
 }
 
+
 .providerList {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
+
 
 .providerLogo {
   width: 40px;
@@ -345,16 +413,19 @@
   cursor: pointer;
 }
 
+
 @media (max-width: 480px) {
   .providerLogo {
     width: 32px;
     height: 32px;
   }
 
+
   .providers h3 {
     font-size: 13px;
   }
 }
+
 
 .watchButton {
   display: block;
@@ -372,15 +443,18 @@
   box-shadow: 0 2px 8px rgba(229, 9, 20, 0.3);
 }
 
+
 .watchButton:hover {
   background: #c40812;
   box-shadow: 0 4px 12px rgba(229, 9, 20, 0.4);
   transform: translateY(-1px);
 }
 
+
 .watchButton:active {
   transform: translateY(0);
 }
+
 
 .closeButton {
   display: block;
@@ -395,9 +469,9 @@
   transition: all 0.2s ease;
 }
 
+
 .closeButton:hover {
   background: var(--bg-card-hover);
   color: var(--text-main);
   border-color: var(--text-main);
 }
-

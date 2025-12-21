@@ -11,8 +11,21 @@
   flex-direction: column;
   padding: 0;
   overflow-y: auto;
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeInBackdrop 0.3s ease-out forwards;
 }
+
+
+@keyframes fadeInBackdrop {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(10px);
+  }
+}
+
 
 @keyframes fadeIn {
   from {
@@ -23,6 +36,7 @@
   }
 }
 
+
 .playerContainer {
   max-width: 1400px;
   width: 100%;
@@ -31,7 +45,21 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  animation: slideUpContent 0.4s ease-out forwards;
 }
+
+
+@keyframes slideUpContent {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 
 .playerHeader {
   display: flex;
@@ -49,6 +77,7 @@
   padding-top: 24px;
 }
 
+
 .playerTitle {
   color: var(--accent);
   font-size: 26px;
@@ -59,9 +88,11 @@
   transition: all 0.3s ease;
 }
 
+
 .playerTitle:hover {
   text-shadow: 0 2px 12px rgba(229, 9, 20, 0.5);
 }
+
 
 .closeBtn {
   background: rgba(20, 20, 20, 0.9);
@@ -81,6 +112,7 @@
   overflow: hidden;
 }
 
+
 .closeBtn::before {
   content: '';
   position: absolute;
@@ -94,6 +126,7 @@
   transition: width 0.3s ease, height 0.3s ease;
 }
 
+
 .closeIcon {
   font-size: 28px;
   font-weight: 300;
@@ -104,6 +137,7 @@
   transition: transform 0.3s ease;
 }
 
+
 .closeBtn:hover {
   background: rgba(229, 9, 20, 0.9);
   border-color: var(--accent);
@@ -111,19 +145,23 @@
   box-shadow: 0 6px 20px rgba(229, 9, 20, 0.4);
 }
 
+
 .closeBtn:hover .closeIcon {
   transform: rotate(-90deg);
 }
+
 
 .closeBtn:hover::before {
   width: 100%;
   height: 100%;
 }
 
+
 .closeBtn:active {
   transform: scale(1.05) rotate(90deg);
   box-shadow: 0 4px 16px rgba(229, 9, 20, 0.3);
 }
+
 
 .iframeWrapper {
   position: relative;
@@ -134,19 +172,21 @@
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   border: 2px solid rgba(255, 255, 255, 0.1);
-  animation: scaleIn 0.4s ease-out;
+  animation: scaleIn 0.5s ease-out 0.2s backwards;
 }
+
 
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.9);
   }
   to {
     opacity: 1;
     transform: scale(1);
   }
 }
+
 
 .videoIframe {
   position: absolute;
@@ -158,6 +198,7 @@
   background: #000;
 }
 
+
 .serverSwitcher {
   display: flex;
   justify-content: center;
@@ -168,6 +209,7 @@
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 
 .serverBtn {
   background: var(--bg-card);
@@ -181,17 +223,20 @@
   transition: all 0.2s ease;
 }
 
+
 .serverBtn:hover {
   background: var(--bg-card-hover);
   color: var(--text-main);
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+
 .serverBtn.active {
   background: var(--accent);
   color: white;
   border-color: var(--accent);
 }
+
 
 .detailsContainer {
   display: flex;
@@ -203,7 +248,9 @@
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
+  animation: fadeIn 0.5s ease-out 0.3s backwards;
 }
+
 
 .detailsPoster {
   width: 180px;
@@ -215,9 +262,11 @@
   border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
+
 .detailsText {
   flex: 1;
 }
+
 
 .detailsOverview {
   color: var(--text-muted);
@@ -226,6 +275,7 @@
   margin: 0;
   text-align: justify;
 }
+
 
 .readMoreBtn {
   background: none;
@@ -239,9 +289,11 @@
   transition: color 0.2s ease;
 }
 
+
 .readMoreBtn:hover {
   color: #c40812;
 }
+
 
 /* Adblocker Warning */
 .adblockWarning {
@@ -250,8 +302,9 @@
   border-radius: 12px;
   padding: 16px 20px;
   margin-bottom: 20px;
-  animation: slideDown 0.3s ease-out;
+  animation: slideDown 0.4s ease-out;
 }
+
 
 @keyframes slideDown {
   from {
@@ -264,9 +317,11 @@
   }
 }
 
+
 .warningContent {
   color: white;
 }
+
 
 .warningContent strong {
   display: block;
@@ -275,6 +330,7 @@
   font-weight: 700;
 }
 
+
 .warningContent p {
   margin: 0 0 12px 0;
   font-size: 14px;
@@ -282,11 +338,13 @@
   opacity: 0.95;
 }
 
+
 .warningActions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
+
 
 .dismissBtn,
 .retryBtn {
@@ -299,24 +357,29 @@
   transition: all 0.2s ease;
 }
 
+
 .dismissBtn {
   background: rgba(255, 255, 255, 0.2);
   color: white;
 }
 
+
 .dismissBtn:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
 
 .retryBtn {
   background: white;
   color: var(--accent);
 }
 
+
 .retryBtn:hover {
   background: rgba(255, 255, 255, 0.9);
   transform: scale(1.05);
 }
+
 
 @media (max-width: 768px) {
   .playerContainer {
@@ -324,30 +387,36 @@
     gap: 16px;
   }
 
+
   .playerHeader {
     padding: 15px 0 10px;
     margin-top: -10px;
     padding-top: 15px;
   }
 
+
   .playerTitle {
     font-size: 18px;
   }
+
 
   .closeBtn {
     width: 40px;
     height: 40px;
   }
 
+
   .closeIcon {
     font-size: 24px;
   }
+
 
   .detailsContainer {
     flex-direction: column;
     padding: 16px;
     gap: 16px;
   }
+
 
   .detailsPoster {
     width: 100%;
@@ -356,40 +425,49 @@
     margin: 0 auto;
   }
 
+
   .iframeWrapper {
     border-radius: 12px;
   }
+
 
   .serverSwitcher {
     padding: 12px;
     gap: 8px;
   }
 
+
   .adblockWarning {
     padding: 12px 16px;
   }
+
 
   .warningContent strong {
     font-size: 14px;
   }
 
+
   .warningContent p {
     font-size: 13px;
   }
 
+
   .warningActions {
     flex-direction: column;
   }
+
 
   .dismissBtn,
   .retryBtn {
     width: 100%;
   }
 
+
   .serverBtn {
     font-size: 11px;
     padding: 6px 12px;
   }
+
 
   .detailsOverview {
     font-size: 14px;
@@ -397,11 +475,13 @@
   }
 }
 
+
 @media (max-width: 480px) {
   .playerContainer {
     padding: 8px;
     gap: 12px;
   }
+
 
   .playerHeader {
     padding: 12px 0 8px;
@@ -409,52 +489,62 @@
     padding-top: 12px;
   }
 
+
   .playerTitle {
     font-size: 16px;
   }
+
 
   .closeBtn {
     width: 32px;
     height: 32px;
   }
 
+
   .closeIcon {
     font-size: 20px;
   }
+
 
   .detailsContainer {
     padding: 12px;
     gap: 12px;
   }
 
+
   .detailsPoster {
     max-width: 150px;
   }
 
+
   .detailsOverview {
     font-size: 13px;
   }
+
 
   .serverSwitcher {
     padding: 10px;
     gap: 6px;
   }
 
+
   .serverBtn {
     font-size: 10px;
     padding: 5px 10px;
   }
 
+
   .adblockWarning {
     padding: 10px 12px;
   }
+
 
   .warningContent strong {
     font-size: 13px;
   }
 
+
   .warningContent p {
     font-size: 12px;
   }
 }
-

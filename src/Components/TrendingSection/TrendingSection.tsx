@@ -21,13 +21,13 @@ export function TrendingSection({
 }: TrendingSectionProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [selected, setSelected] = useState<Movie | null>(null);
-  const [watchProviders, setWatchProviders] = useState<any>(null);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Clear selected movie when changing tabs, search, or genre
   useEffect(() => {
     setSelected(null);
+    setIsPlayerOpen(false);
   }, [activeTab, searchQuery, selectedGenre]);
 
   useEffect(() => {
@@ -37,19 +37,16 @@ export function TrendingSection({
         let url = '';
         
         if (searchQuery.trim()) {
-          // Search mode
           url = `${TMDB_BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchQuery)}&page=1`;
           if (selectedGenre) {
             url += `&with_genres=${selectedGenre}`;
           }
         } else {
-          // Tab-based fetching
           switch (activeTab) {
             case 'home':
               url = `${TMDB_BASE_URL}/trending/movie/week?api_key=${API_KEY}`;
               break;
             case 'new':
-              // Get upcoming movies
               url = `${TMDB_BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=1`;
               break;
             case 'popular':
@@ -58,7 +55,6 @@ export function TrendingSection({
           }
           
           if (selectedGenre) {
-            // If genre is selected, use discover endpoint
             url = `${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${selectedGenre}&sort_by=`;
             if (activeTab === 'new') {
               url += 'release_date.desc';
@@ -94,14 +90,9 @@ export function TrendingSection({
     fetchMovies();
   }, [activeTab, searchQuery, selectedGenre]);
 
-  async function handleMovieClick(movie: Movie) {
+  function handleMovieClick(movie: Movie) {
     setSelected(movie);
-    
-    const res = await fetch(
-      `${TMDB_BASE_URL}/movie/${movie.id}/watch/providers?api_key=${API_KEY}`
-    );
-    const data = await res.json();
-    setWatchProviders(data.results?.US || null);
+    setIsPlayerOpen(true); // Open video player immediately
   }
 
   const getGenreName = (genreId: number | null) => {
@@ -160,67 +151,14 @@ export function TrendingSection({
         </div>
       )}
 
-      <div className={`${styles.layout} ${selected ? styles.layoutWithDetails : ''}`}>
-        <div className={styles.movieGrid}>
-          {movies.map((m) => (
-            <MovieCard
-              key={m.id}
-              movie={m}
-              onClick={() => handleMovieClick(m)}
-            />
-          ))}
-        </div>
-
-        {selected && (
-          <aside className={styles.details}>
-            <div className={styles.detailsContent}>
-              <h2 className={styles.detailsTitle}>{selected.title}</h2>
-              {selected.releaseDate && (
-                <p className={styles.detailsMeta}>
-                  Release: {selected.releaseDate}
-                </p>
-              )}
-              {selected.voteAverage != null && (
-                <p className={styles.detailsMeta}>
-                  Rating: {selected.voteAverage.toFixed(1)} / 10
-                </p>
-              )}
-              {selected.overview && (
-                <p className={styles.detailsOverview}>{selected.overview}</p>
-              )}
-
-              {watchProviders?.flatrate && (
-                <div className={styles.providers}>
-                  <h3>Stream on:</h3>
-                  <div className={styles.providerList}>
-                    {watchProviders.flatrate.map((p: any) => (
-                      <img
-                        key={p.provider_id}
-                        src={`https://image.tmdb.org/t/p/original${p.logo_path}`}
-                        alt={p.provider_name}
-                        title={p.provider_name}
-                        className={styles.providerLogo}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className={styles.detailsActions}>
-              <button 
-                onClick={() => setIsPlayerOpen(true)} 
-                className={styles.watchButton}
-              >
-                Watch Now →
-              </button>
-
-              <button onClick={() => setSelected(null)} className={styles.closeButton}>
-                Close
-              </button>
-            </div>
-          </aside>
-        )}
+      <div className={styles.movieGrid}>
+        {movies.map((m) => (
+          <MovieCard
+            key={m.id}
+            movie={m}
+            onClick={() => handleMovieClick(m)}
+          />
+        ))}
       </div>
 
       {selected && (
@@ -230,7 +168,10 @@ export function TrendingSection({
           moviePoster={selected.poster}
           movieOverview={selected.overview || ''}
           isOpen={isPlayerOpen}
-          onClose={() => setIsPlayerOpen(false)}
+          onClose={() => {
+            setIsPlayerOpen(false);
+            setSelected(null);
+          }}
         />
       )}
     </section>
