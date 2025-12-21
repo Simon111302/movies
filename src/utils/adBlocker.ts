@@ -29,24 +29,6 @@ const AD_DOMAINS = [
   'advertising.com',
 ];
 
-const AD_TEXT_PATTERNS = [
-  'install opera',
-  'install browser',
-  'download opera',
-  'opera gx',
-  'click to continue',
-  'install extension',
-  'install app',
-  'browser required',
-  'update required',
-  'ad block wonder',
-  'chrome web store',
-  'add extension',
-  'browse the web without interruptions',
-  'available in the',
-  'privacy policy',
-];
-
 // Ad-related class names and IDs to block (more specific to avoid false positives)
 const AD_SELECTORS = [
   '.adsbygoogle',

@@ -4,6 +4,8 @@ import styles from './VideoPlayer.module.css';
 import { blockIframeAds, startAggressiveOverlayRemoval } from '../../utils/adBlocker';
 
 
+
+
 type VideoPlayerProps = {
   movieId: number;
   movieTitle: string;
@@ -14,12 +16,16 @@ type VideoPlayerProps = {
 };
 
 
+
+
 const serverConfig = {
   vidnest: 'https://vidnest.fun',
   cinemaos: 'https://cinemaos.tech',
   videasy: 'https://player.videasy.net',
   vidora: 'https://vidora.su',
 };
+
+
 
 
 export function VideoPlayer({
@@ -38,6 +44,8 @@ export function VideoPlayer({
   const overlayIntervalRef = useRef<number | null>(null);
 
 
+
+
   // Lock body scroll when player is open
   useEffect(() => {
     if (isOpen) {
@@ -51,12 +59,18 @@ export function VideoPlayer({
   }, [isOpen]);
 
 
+
+
   // Start aggressive overlay removal
   useEffect(() => {
     if (!isOpen) return;
 
 
+
+
     overlayIntervalRef.current = startAggressiveOverlayRemoval();
+
+
 
 
     return () => {
@@ -67,13 +81,21 @@ export function VideoPlayer({
   }, [isOpen]);
 
 
+
+
   // Immediate popup removal on player open
   useEffect(() => {
     if (!isOpen) return;
 
+
     const removePopups = () => {
-      // Remove by text content
-      const allElements = document.querySelectorAll('*');
+      // ONLY scan within the player area, not the entire document
+      const playerArea = document.querySelector(`.${styles.playerArea}`);
+      if (!playerArea) return;
+
+
+      // Remove by text content - ONLY within player
+      const allElements = playerArea.querySelectorAll('*');
       allElements.forEach((el) => {
         const htmlEl = el as HTMLElement;
         const text = htmlEl.textContent?.toLowerCase() || '';
@@ -86,8 +108,8 @@ export function VideoPlayer({
           (text.includes('add extension') && text.includes('privacy policy'))
         ) {
           // Check if element is positioned over video
-          const styles = window.getComputedStyle(htmlEl);
-          const position = styles.position;
+          const computedStyles = window.getComputedStyle(htmlEl);
+          const position = computedStyles.position;
           
           if (position === 'fixed' || position === 'absolute') {
             htmlEl.remove();
@@ -96,101 +118,97 @@ export function VideoPlayer({
         }
       });
 
-      // Also remove by common modal patterns
-      const modalSelectors = [
-        '[role="dialog"]',
-        '[class*="modal"]',
-        '[id*="modal"]',
-        '[class*="popup"]',
-        '[class*="overlay"]',
-      ];
 
-      modalSelectors.forEach((selector) => {
-        try {
-          const elements = document.querySelectorAll(selector);
-          elements.forEach((el) => {
-            const text = el.textContent?.toLowerCase() || '';
-            if (text.includes('extension') || text.includes('chrome') || text.includes('install')) {
-              (el as HTMLElement).remove();
-              console.log('🗑️ Removed modal popup');
-            }
-          });
-        } catch (e) {}
+      // Also scan for high z-index overlays ONLY
+      const highZIndexElements = document.querySelectorAll('*');
+      highZIndexElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        const computedStyles = window.getComputedStyle(htmlEl);
+        const zIndex = parseInt(computedStyles.zIndex || '0');
+        
+        // Only target elements with very high z-index (likely overlays)
+        if (zIndex > 9999) {
+          const text = htmlEl.textContent?.toLowerCase() || '';
+          if (text.includes('extension') || text.includes('chrome') || text.includes('install')) {
+            htmlEl.remove();
+            console.log('🗑️ Removed high z-index popup');
+          }
+        }
       });
     };
+
 
     // Run immediately
     removePopups();
     
-    // Run every 300ms (faster than before)
-    const immediateInterval = setInterval(removePopups, 300);
+    // Run every 500ms (slower to reduce interference)
+    const immediateInterval = setInterval(removePopups, 500);
+
 
     return () => clearInterval(immediateInterval);
   }, [isOpen]);
 
 
-  // Block popups on click/play
-  useEffect(() => {
-    if (!isOpen) return;
 
 
-    const originalWindowOpen = window.open;
-    let clickCount = 0;
+ // Block popups on click/play
+useEffect(() => {
+  if (!isOpen) return;
 
+  const originalWindowOpen = window.open;
+  let clickCount = 0;
 
-    // Override window.open completely
-    window.open = function (
-      url?: string | URL,
-      target?: string,
-      features?: string
-    ): Window | null {
-      const urlString = typeof url === 'string' ? url : url?.toString() || '';
+  // Override window.open completely - use type assertion
+  (window.open as any) = function (
+    url?: string | URL,
+    _target?: string,
+    _features?: string
+  ): Window | null {
+    const urlString = url ? (typeof url === 'string' ? url : url.toString()) : '';
 
+    console.log('🚫 Blocked popup attempt:', urlString);
 
-      console.log('Blocked popup attempt:', urlString);
+    // Block ALL popups from iframe clicks
+    return null;
+  };
 
+  // Intercept clicks on iframe wrapper to prevent popups
+  const handleWrapperClick = () => {
+    clickCount++;
 
-      // Block ALL popups from iframe clicks
-      return null;
-    };
+    // First click usually triggers popup
+    if (clickCount === 1) {
+      console.log('🛡️ First click detected - blocking popups');
 
-
-    // Intercept clicks on iframe wrapper to prevent popups
-    const handleWrapperClick = (e: MouseEvent) => {
-      clickCount++;
-
-
-      // First click usually triggers popup
-      if (clickCount === 1) {
-        console.log('First click detected - blocking popups');
-
-
-        // Close any popups that might have opened
-        setTimeout(() => {
-          closeAllPopups();
-        }, 100);
-      }
-    };
-
-
-    const iframeWrapper = iframeRef.current?.parentElement;
-    if (iframeWrapper) {
-      iframeWrapper.addEventListener('click', handleWrapperClick);
+      // Close any popups that might have opened
+      setTimeout(() => {
+        closeAllPopups();
+      }, 100);
     }
+  };
+
+  const iframeWrapper = iframeRef.current?.parentElement;
+  if (iframeWrapper) {
+    iframeWrapper.addEventListener('click', handleWrapperClick);
+  }
+
+  return () => {
+    window.open = originalWindowOpen;
+    if (iframeWrapper) {
+      iframeWrapper.removeEventListener('click', handleWrapperClick);
+    }
+  };
+}, [isOpen]);
 
 
-    return () => {
-      window.open = originalWindowOpen;
-      if (iframeWrapper) {
-        iframeWrapper.removeEventListener('click', handleWrapperClick);
-      }
-    };
-  }, [isOpen]);
+
 
 
   // Monitor fullscreen changes
   useEffect(() => {
     if (!isOpen) return;
+
+
 
 
     const handleFullscreenChange = () => {
@@ -202,6 +220,8 @@ export function VideoPlayer({
       );
 
 
+
+
       if (isFullscreen) {
         console.log('🎬 Fullscreen - closing popups');
         closeAllPopups();
@@ -209,10 +229,14 @@ export function VideoPlayer({
     };
 
 
+
+
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     document.addEventListener('mozfullscreenchange', handleFullscreenChange);
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+
 
 
     return () => {
@@ -227,6 +251,8 @@ export function VideoPlayer({
   }, [isOpen]);
 
 
+
+
   // Close all tracked popups
   function closeAllPopups() {
     // Close tracked windows
@@ -236,9 +262,13 @@ export function VideoPlayer({
           popup.close();
           console.log('✅ Closed popup');
         }
-      } catch (e) {}
+      } catch (e) {
+        // Ignore errors
+      }
     });
     popupWindowsRef.current = [];
+
+
 
 
     // Also try to close any new windows
@@ -246,13 +276,19 @@ export function VideoPlayer({
       if (window.opener) {
         window.close();
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore errors
+    }
   }
+
+
 
 
   // Set iframe src when opened / server changes
   useEffect(() => {
     if (!isOpen || !iframeRef.current) return;
+
+
 
 
     const base = serverConfig[currentServer];
@@ -262,16 +298,22 @@ export function VideoPlayer({
   }, [isOpen, currentServer, movieId]);
 
 
+
+
   function handleServerChange(server: keyof typeof serverConfig) {
     setCurrentServer(server);
     closeAllPopups();
   }
 
 
+
+
   function handleIframeLoad() {
     if (!iframeRef.current) return;
     blockIframeAds(iframeRef.current);
   }
+
+
 
 
   function handleClose() {
@@ -283,13 +325,19 @@ export function VideoPlayer({
   }
 
 
+
+
   if (!isOpen) return null;
+
+
 
 
   const shouldShowReadMore = movieOverview && movieOverview.length > 150;
   const displayOverview = overviewExpanded
     ? movieOverview
     : movieOverview?.substring(0, 150) + (shouldShowReadMore ? '...' : '');
+
+
 
 
   return (
@@ -307,6 +355,8 @@ export function VideoPlayer({
         </div>
 
 
+
+
         <div className={styles.iframeWrapper}>
           <iframe
             ref={iframeRef}
@@ -320,6 +370,8 @@ export function VideoPlayer({
             onLoad={handleIframeLoad}
           />
         </div>
+
+
 
 
         <div className={styles.serverSwitcher}>
@@ -337,6 +389,8 @@ export function VideoPlayer({
             </button>
           ))}
         </div>
+
+
 
 
         <div className={styles.detailsContainer}>
