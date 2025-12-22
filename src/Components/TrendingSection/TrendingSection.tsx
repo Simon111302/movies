@@ -23,11 +23,14 @@ export function TrendingSection({
   const [selected, setSelected] = useState<Movie | null>(null);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Clear selected movie when changing tabs, search, or genre
+  // Clear selected movie and reset page when changing tabs, search, or genre
   useEffect(() => {
     setSelected(null);
     setIsPlayerOpen(false);
+    setCurrentPage(1); // Reset to page 1 when filters change
   }, [activeTab, searchQuery, selectedGenre]);
 
   useEffect(() => {
@@ -37,25 +40,26 @@ export function TrendingSection({
         let url = '';
         
         if (searchQuery.trim()) {
-          url = `${TMDB_BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchQuery)}&page=1`;
+          url = `${TMDB_BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchQuery)}&page=${currentPage}`;
           if (selectedGenre) {
             url += `&with_genres=${selectedGenre}`;
           }
         } else {
           switch (activeTab) {
             case 'home':
-              url = `${TMDB_BASE_URL}/trending/movie/week?api_key=${API_KEY}`;
+              // Trending doesn't support pagination, but we'll add page parameter anyway
+              url = `${TMDB_BASE_URL}/trending/movie/week?api_key=${API_KEY}&page=${currentPage}`;
               break;
             case 'new':
-              url = `${TMDB_BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=1`;
+              url = `${TMDB_BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=${currentPage}`;
               break;
             case 'popular':
-              url = `${TMDB_BASE_URL}/movie/popular?api_key=${API_KEY}&page=1`;
+              url = `${TMDB_BASE_URL}/movie/popular?api_key=${API_KEY}&page=${currentPage}`;
               break;
           }
           
           if (selectedGenre) {
-            url = `${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${selectedGenre}&sort_by=`;
+            url = `${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${selectedGenre}&page=${currentPage}&sort_by=`;
             if (activeTab === 'new') {
               url += 'release_date.desc';
             } else if (activeTab === 'popular') {
@@ -79,6 +83,9 @@ export function TrendingSection({
         }));
 
         setMovies(mapped);
+        // Set total pages (cap at 10 as requested)
+        const total = Math.min(data.total_pages || 1, 10);
+        setTotalPages(total);
       } catch (error) {
         console.error('Failed to fetch movies:', error);
         setMovies([]);
@@ -88,7 +95,7 @@ export function TrendingSection({
     }
 
     fetchMovies();
-  }, [activeTab, searchQuery, selectedGenre]);
+  }, [activeTab, searchQuery, selectedGenre, currentPage]);
 
   function handleMovieClick(movie: Movie) {
     setSelected(movie);
@@ -160,6 +167,27 @@ export function TrendingSection({
           />
         ))}
       </div>
+
+      {/* Pagination */}
+      {!loading && movies.length > 0 && totalPages > 1 && (
+        <div className={styles.pagination}>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              className={`${styles.pageButton} ${
+                currentPage === page ? styles.active : ''
+              }`}
+              onClick={() => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              aria-label={`Go to page ${page}`}
+            >
+              {page}
+            </button>
+          ))}
+        </div>
+      )}
 
       {selected && (
         <VideoPlayer

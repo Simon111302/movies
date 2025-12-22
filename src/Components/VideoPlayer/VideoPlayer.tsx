@@ -65,18 +65,86 @@ export function VideoPlayer({
   useEffect(() => {
     if (!isOpen) return;
 
+    // Inject CSS to hide ad overlays by class/id patterns
+    const styleId = 'ad-blocker-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        /* Hide ad overlays by common patterns */
+        [class*="ad-block"],
+        [class*="adblock"],
+        [id*="ad-block"],
+        [id*="adblock"],
+        [class*="advertisement"],
+        [id*="advertisement"],
+        [class*="ad-overlay"],
+        [id*="ad-overlay"],
+        [class*="ad-popup"],
+        [id*="ad-popup"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          height: 0 !important;
+          width: 0 !important;
+          overflow: hidden !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
+    // Use MutationObserver to catch new elements as they're added
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node as HTMLElement;
+            const text = element.textContent?.toLowerCase() || '';
+            
+            // Check for Ad Block Wonder and similar
+            if (
+              text.includes('ad block wonder') ||
+              text.includes('adblock wonder') ||
+              text.includes('blocks ads, crushes pop-ups') ||
+              text.includes('we silence the noise') ||
+              text.includes('take out the trash')
+            ) {
+              // Hide immediately
+              element.style.display = 'none';
+              element.style.visibility = 'hidden';
+              element.style.opacity = '0';
+              element.style.pointerEvents = 'none';
+              element.style.height = '0';
+              element.style.width = '0';
+              element.style.overflow = 'hidden';
+              
+              // Also try to remove
+              setTimeout(() => {
+                if (element.parentElement) {
+                  element.remove();
+                }
+              }, 10);
+              console.log('🚫 Blocked ad overlay via MutationObserver');
+            }
+          }
+        });
+      });
+    });
 
+    // Observe the entire document
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
 
     overlayIntervalRef.current = startAggressiveOverlayRemoval();
-
-
-
 
     return () => {
       if (overlayIntervalRef.current) {
         clearInterval(overlayIntervalRef.current);
       }
+      observer.disconnect();
     };
   }, [isOpen]);
 
@@ -89,50 +157,82 @@ export function VideoPlayer({
 
 
     const removePopups = () => {
-      // ONLY scan within the player area, not the entire document
-      const playerArea = document.querySelector(`.${styles.playerArea}`);
-      if (!playerArea) return;
-
-
-      // Remove by text content - ONLY within player
-      const allElements = playerArea.querySelectorAll('*');
+      // Scan entire document for overlays (ads can appear anywhere)
+      const allElements = document.querySelectorAll('*');
+      
       allElements.forEach((el) => {
         const htmlEl = el as HTMLElement;
-        const text = htmlEl.textContent?.toLowerCase() || '';
+        if (!htmlEl || !htmlEl.parentElement) return;
         
-        // More specific targeting for "AD BLOCK WONDER"
-        if (
+        const text = htmlEl.textContent?.toLowerCase() || '';
+        const computedStyles = window.getComputedStyle(htmlEl);
+        const position = computedStyles.position;
+        const zIndex = parseInt(computedStyles.zIndex || '0');
+        const display = computedStyles.display;
+        const visibility = computedStyles.visibility;
+        
+        // Skip if hidden
+        if (display === 'none' || visibility === 'hidden') return;
+        
+        // Check for "Ad Block Wonder" and related text patterns
+        const isAdBlockWonder = 
           text.includes('ad block wonder') ||
+          text.includes('adblock wonder') ||
+          text.includes('blocks ads, crushes pop-ups') ||
           text.includes('browse the web without interruptions') ||
-          text.includes('chrome web store') ||
-          (text.includes('add extension') && text.includes('privacy policy'))
+          text.includes('we silence the noise') ||
+          text.includes('take out the trash') ||
+          (text.includes('blocks ads') && text.includes('pop-ups')) ||
+          (text.includes('chrome web store') && text.includes('extension'));
+        
+        // Check if it's an overlay (fixed/absolute with high z-index or positioned)
+        const isOverlay = 
+          (position === 'fixed' || position === 'absolute') &&
+          (zIndex > 100 || text.length > 20); // Lower threshold for z-index
+        
+        if (isAdBlockWonder && isOverlay) {
+          htmlEl.remove();
+          console.log('🗑️ Removed AD BLOCK WONDER popup');
+          return;
+        }
+        
+        // Also check for elements with specific ad-related patterns
+        if (
+          (text.includes('continue') && text.includes('extension')) ||
+          (text.includes('install') && (text.includes('browser') || text.includes('extension'))) ||
+          (text.includes('advertisement') && position !== 'static') ||
+          (text.includes('sponsored') && zIndex > 50)
         ) {
-          // Check if element is positioned over video
-          const computedStyles = window.getComputedStyle(htmlEl);
-          const position = computedStyles.position;
-          
           if (position === 'fixed' || position === 'absolute') {
             htmlEl.remove();
-            console.log('🗑️ Removed AD BLOCK WONDER popup');
+            console.log('🗑️ Removed ad overlay');
           }
         }
       });
-
-
-      // Also scan for high z-index overlays ONLY
-      const highZIndexElements = document.querySelectorAll('*');
-      highZIndexElements.forEach((el) => {
-        const htmlEl = el as HTMLElement;
-        const computedStyles = window.getComputedStyle(htmlEl);
-        const zIndex = parseInt(computedStyles.zIndex || '0');
-        
-        // Only target elements with very high z-index (likely overlays)
-        if (zIndex > 9999) {
-          const text = htmlEl.textContent?.toLowerCase() || '';
-          if (text.includes('extension') || text.includes('chrome') || text.includes('install')) {
-            htmlEl.remove();
-            console.log('🗑️ Removed high z-index popup');
+      
+      // Also check for iframe overlays that might be injected
+      const iframes = document.querySelectorAll('iframe');
+      iframes.forEach((iframe) => {
+        try {
+          // Try to access iframe content (may fail due to CORS)
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (iframeDoc) {
+            const iframeElements = iframeDoc.querySelectorAll('*');
+            iframeElements.forEach((el) => {
+              const htmlEl = el as HTMLElement;
+              const text = htmlEl.textContent?.toLowerCase() || '';
+              if (
+                text.includes('ad block wonder') ||
+                text.includes('blocks ads, crushes pop-ups') ||
+                (text.includes('extension') && text.includes('chrome'))
+              ) {
+                htmlEl.remove();
+                console.log('🗑️ Removed ad from iframe');
+              }
+            });
           }
+        } catch (e) {
+          // Cross-origin, can't access - this is expected
         }
       });
     };
@@ -141,8 +241,8 @@ export function VideoPlayer({
     // Run immediately
     removePopups();
     
-    // Run every 500ms (slower to reduce interference)
-    const immediateInterval = setInterval(removePopups, 500);
+    // Run every 100ms for very aggressive ad removal
+    const immediateInterval = setInterval(removePopups, 100);
 
 
     return () => clearInterval(immediateInterval);
@@ -364,7 +464,7 @@ useEffect(() => {
             src=""
             title={movieTitle}
             allowFullScreen
-            sandbox="allow-scripts allow-same-origin allow-top-navigation-by-user-activation"
+            sandbox="allow-scripts allow-same-origin"
             loading="lazy"
             frameBorder={0}
             onLoad={handleIframeLoad}

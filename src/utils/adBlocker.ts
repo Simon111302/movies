@@ -15,7 +15,6 @@ const AD_DOMAINS = [
   'adsrvr.org',
   'adtechus.com',
   'amazon-adsystem.com',
-  'advertising.com',
   'adform.net',
   'adition.com',
   'adzerk.net',
@@ -26,7 +25,16 @@ const AD_DOMAINS = [
   'outbrain.com',
   'taboola.com',
   'adsystem.com',
-  'advertising.com',
+  'adsrvr.com',
+  'adserver.com',
+  'adserver.net',
+  'adserver.org',
+  'adtech.com',
+  'criteo.com',
+  'media.net',
+  'bidswitch.net',
+  'casalemedia.com',
+  'smartadserver.com',
 ];
 
 // Ad-related class names and IDs to block (more specific to avoid false positives)
@@ -376,7 +384,7 @@ function observeAdElements() {
  */
 export function startAggressiveOverlayRemoval(): number {
   const intervalId = window.setInterval(() => {
-    // ONLY target very high z-index overlays
+    // Target high z-index overlays and popups
     const allElements = document.querySelectorAll('*');
 
     allElements.forEach((el) => {
@@ -386,16 +394,21 @@ export function startAggressiveOverlayRemoval(): number {
       const position = styles.position;
       const display = styles.display;
 
-      // Target ONLY very high z-index overlays (9999+)
+      // Target overlays with lower z-index threshold - more aggressive
       if (
-        zIndex > 9999 &&
+        zIndex > 100 &&
         (position === 'fixed' || position === 'absolute') &&
         display !== 'none'
       ) {
         const text = htmlEl.textContent?.toLowerCase() || '';
 
-        // Check if it mentions installing/downloading/extensions
+        // Check if it mentions installing/downloading/extensions/ads
         if (
+          text.includes('ad block wonder') ||
+          text.includes('adblock wonder') ||
+          text.includes('blocks ads, crushes pop-ups') ||
+          text.includes('we silence the noise') ||
+          text.includes('take out the trash') ||
           text.includes('install') ||
           text.includes('opera') ||
           text.includes('download') ||
@@ -404,14 +417,21 @@ export function startAggressiveOverlayRemoval(): number {
           text.includes('extension') ||
           text.includes('chrome web store') ||
           text.includes('ad block') ||
-          text.includes('privacy policy')
+          text.includes('adblock') ||
+          text.includes('privacy policy') ||
+          text.includes('advertisement') ||
+          text.includes('sponsored') ||
+          text.includes('click here') ||
+          text.includes('watch now') ||
+          text.includes('skip ad') ||
+          (text.includes('blocks ads') && text.includes('pop-ups'))
         ) {
           htmlEl.remove();
           console.log('🗑️ Removed fake popup overlay:', text.substring(0, 50));
         }
       }
     });
-  }, 1000); // Back to 1 second
+  }, 100); // Very frequent - every 100ms for aggressive removal
 
   return intervalId;
 }
