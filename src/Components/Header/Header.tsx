@@ -56,7 +56,7 @@ export function Header({
 
   return (
     <header className={styles.header}>
-      <div className={styles.logo}>KapoyaBuhatAni</div>
+      <div className={styles.logo}>Sflix</div>
 
       <nav className={styles.nav}>
         <button
