@@ -5,8 +5,8 @@ import { MovieCard, type Movie } from '../MovieCard/MovieCard';
 import { VideoPlayer } from '../VideoPlayer/VideoPlayer';
 
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY as string;
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
-const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+const TMDB_BASE_URL = import.meta.env.VITE_TMDB_BASE_URL as string;
+const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL as string;
 
 type TrendingSectionProps = {
   activeTab: 'home' | 'new' | 'popular';
