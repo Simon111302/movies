@@ -1,5 +1,4 @@
-// src/components/Header/Header.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './Header.module.css';
 
 type HeaderProps = {
@@ -36,8 +35,9 @@ export function Header({
 }: HeaderProps) {
   const [showGenreFilter, setShowGenreFilter] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const activeGenreName =
+    GENRES.find((genre) => genre.id === selectedGenre)?.name ?? 'All Genres';
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
@@ -56,36 +56,47 @@ export function Header({
 
   return (
     <header className={styles.header}>
-      <div className={styles.logo}>Sflix</div>
+      <div className={styles.topRow}>
+        <div className={styles.brand}>
+          <div className={styles.logoMark}>MS</div>
+          <div className={styles.brandText}>
+            <p className={styles.brandTitle}>MovieS</p>
+            <p className={styles.brandTagline}>Discover movies in seconds</p>
+          </div>
+        </div>
 
-      <nav className={styles.nav}>
-        <button
-          className={`${styles.navLink} ${activeTab === 'home' ? styles.active : ''}`}
-          onClick={() => onTabChange('home')}
-        >
-          Home
-        </button>
-        <button
-          className={`${styles.navLink} ${activeTab === 'new' ? styles.active : ''}`}
-          onClick={() => onTabChange('new')}
-        >
-          New
-        </button>
-        <button
-          className={`${styles.navLink} ${activeTab === 'popular' ? styles.active : ''}`}
-          onClick={() => onTabChange('popular')}
-        >
-          Popular
-        </button>
-      </nav>
+        <nav className={styles.nav} aria-label="Movie sections">
+          <button
+            className={`${styles.navLink} ${activeTab === 'home' ? styles.active : ''}`}
+            onClick={() => onTabChange('home')}
+          >
+            Discover
+          </button>
+          <button
+            className={`${styles.navLink} ${activeTab === 'new' ? styles.active : ''}`}
+            onClick={() => onTabChange('new')}
+          >
+            Upcoming
+          </button>
+          <button
+            className={`${styles.navLink} ${activeTab === 'popular' ? styles.active : ''}`}
+            onClick={() => onTabChange('popular')}
+          >
+            Popular
+          </button>
+        </nav>
+      </div>
 
-      <div className={styles.headerRight}>
+      <div className={styles.actionsRow}>
         <div className={styles.filterWrapper} ref={filterRef}>
           <button
             className={styles.filterButton}
             onClick={() => setShowGenreFilter(!showGenreFilter)}
+            aria-label="Filter by genre"
+            aria-expanded={showGenreFilter}
           >
-            Filter {selectedGenre !== null && '✓'}
+            <span className={styles.filterLabel}>Genre</span>
+            <span className={styles.filterValue}>{activeGenreName}</span>
           </button>
           {showGenreFilter && (
             <div className={styles.genreDropdown}>
@@ -108,17 +119,25 @@ export function Header({
         </div>
 
         <div className={styles.searchWrapper}>
+          <span className={styles.searchIcon} aria-hidden="true">
+            Search
+          </span>
           <input
             className={styles.searchInput}
-            placeholder="Search movies..."
+            placeholder="Search by title..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                onSearchChange(searchQuery);
-              }
-            }}
+            aria-label="Search movies"
           />
+          {searchQuery && (
+            <button
+              className={styles.clearSearch}
+              onClick={() => onSearchChange('')}
+              aria-label="Clear search"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
     </header>
