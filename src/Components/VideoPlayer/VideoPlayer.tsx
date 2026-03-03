@@ -1,5 +1,6 @@
 // src/Components/VideoPlayer/VideoPlayer.tsx
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './VideoPlayer.module.css';
 import { blockIframeAds, startAggressiveOverlayRemoval } from '../../utils/adBlocker';
 
@@ -424,6 +425,20 @@ useEffect(() => {
     onClose();
   }
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
 
 
 
@@ -440,18 +455,20 @@ useEffect(() => {
 
 
 
-  return (
+  return createPortal(
+    (
     <div className={styles.playerArea}>
+      <button
+        className={`${styles.closeBtn} ${styles.floatingCloseBtn}`}
+        onClick={handleClose}
+        aria-label="Close player"
+      >
+        <span className={styles.closeIcon}>X</span>
+      </button>
+
       <div className={styles.playerContainer}>
         <div className={styles.playerHeader}>
           <h2 className={styles.playerTitle}>{movieTitle}</h2>
-          <button
-            className={styles.closeBtn}
-            onClick={handleClose}
-            aria-label="Close player"
-          >
-            <span className={styles.closeIcon}>×</span>
-          </button>
         </div>
 
 
@@ -515,5 +532,8 @@ useEffect(() => {
         </div>
       </div>
     </div>
+    ),
+    document.body,
   );
 }
+

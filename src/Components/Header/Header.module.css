@@ -280,3 +280,20 @@
     min-width: 0;
   }
 }
+
+@media (max-width: 360px) {
+  .logoMark {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+  }
+
+  .brandTagline {
+    display: none;
+  }
+
+  .navLink {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+}
