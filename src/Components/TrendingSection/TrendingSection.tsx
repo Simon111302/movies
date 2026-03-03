@@ -1,4 +1,3 @@
-// src/Components/TrendingSection/TrendingSection.tsx
 import { useEffect, useState } from 'react';
 import styles from './TrendingSection.module.css';
 import { MovieCard, type Movie } from '../MovieCard/MovieCard';
@@ -14,6 +13,39 @@ type TrendingSectionProps = {
   selectedGenre: number | null;
 };
 
+type TmdbMovie = {
+  id: number;
+  title: string;
+  poster_path: string | null;
+  overview?: string;
+  release_date?: string;
+  vote_average?: number;
+};
+
+type TmdbResponse = {
+  results?: TmdbMovie[];
+  total_pages?: number;
+};
+
+function getPaginationItems(totalPages: number, currentPage: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const pages: Array<number | string> = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) pages.push('left-ellipsis');
+  for (let page = start; page <= end; page += 1) {
+    pages.push(page);
+  }
+  if (end < totalPages - 1) pages.push('right-ellipsis');
+
+  pages.push(totalPages);
+  return pages;
+}
+
 export function TrendingSection({
   activeTab,
   searchQuery,
@@ -25,69 +57,84 @@ export function TrendingSection({
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Clear selected movie and reset page when changing tabs, search, or genre
   useEffect(() => {
     setSelected(null);
     setIsPlayerOpen(false);
-    setCurrentPage(1); // Reset to page 1 when filters change
+    setCurrentPage(1);
   }, [activeTab, searchQuery, selectedGenre]);
 
   useEffect(() => {
     async function fetchMovies() {
+      if (!API_KEY || !TMDB_BASE_URL || !IMAGE_BASE_URL) {
+        setErrorMessage('Missing API configuration in environment variables.');
+        setMovies([]);
+        return;
+      }
+
       setLoading(true);
+      setErrorMessage('');
+
       try {
         let url = '';
-        
+
         if (searchQuery.trim()) {
-          url = `${TMDB_BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchQuery)}&page=${currentPage}`;
+          const params = new URLSearchParams({
+            api_key: API_KEY,
+            query: searchQuery.trim(),
+            page: String(currentPage),
+          });
+
           if (selectedGenre) {
-            url += `&with_genres=${selectedGenre}`;
+            params.append('with_genres', String(selectedGenre));
           }
+
+          url = `${TMDB_BASE_URL}/search/movie?${params.toString()}`;
+        } else if (selectedGenre) {
+          const params = new URLSearchParams({
+            api_key: API_KEY,
+            with_genres: String(selectedGenre),
+            page: String(currentPage),
+            sort_by: activeTab === 'new' ? 'release_date.desc' : 'popularity.desc',
+          });
+
+          url = `${TMDB_BASE_URL}/discover/movie?${params.toString()}`;
         } else {
-          switch (activeTab) {
-            case 'home':
-              // Trending doesn't support pagination, but we'll add page parameter anyway
-              url = `${TMDB_BASE_URL}/trending/movie/week?api_key=${API_KEY}&page=${currentPage}`;
-              break;
-            case 'new':
-              url = `${TMDB_BASE_URL}/movie/upcoming?api_key=${API_KEY}&page=${currentPage}`;
-              break;
-            case 'popular':
-              url = `${TMDB_BASE_URL}/movie/popular?api_key=${API_KEY}&page=${currentPage}`;
-              break;
-          }
-          
-          if (selectedGenre) {
-            url = `${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=${selectedGenre}&page=${currentPage}&sort_by=`;
-            if (activeTab === 'new') {
-              url += 'release_date.desc';
-            } else if (activeTab === 'popular') {
-              url += 'popularity.desc';
-            } else {
-              url += 'popularity.desc';
-            }
+          const params = new URLSearchParams({
+            api_key: API_KEY,
+            page: String(currentPage),
+          });
+
+          if (activeTab === 'home') {
+            url = `${TMDB_BASE_URL}/trending/movie/week?${params.toString()}`;
+          } else if (activeTab === 'new') {
+            url = `${TMDB_BASE_URL}/movie/upcoming?${params.toString()}`;
+          } else {
+            url = `${TMDB_BASE_URL}/movie/popular?${params.toString()}`;
           }
         }
 
-        const res = await fetch(url);
-        const data = await res.json();
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`TMDB request failed (${response.status})`);
+        }
 
-        const mapped: Movie[] = (data.results || []).map((m: any) => ({
-          id: m.id,
-          title: m.title,
-          poster: m.poster_path ? `${IMAGE_BASE_URL}${m.poster_path}` : '',
-          overview: m.overview,
-          releaseDate: m.release_date,
-          voteAverage: m.vote_average,
+        const data: TmdbResponse = await response.json();
+        const mappedMovies: Movie[] = (data.results ?? []).map((movie) => ({
+          id: movie.id,
+          title: movie.title,
+          poster: movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : '',
+          overview: movie.overview,
+          releaseDate: movie.release_date,
+          voteAverage: movie.vote_average,
         }));
 
-        setMovies(mapped);
-        // Set total pages (cap at 10 as requested)
-        const total = Math.min(data.total_pages || 1, 10);
-        setTotalPages(total);
+        setMovies(mappedMovies);
+        setTotalPages(Math.min(data.total_pages ?? 1, 10));
       } catch (error) {
         console.error('Failed to fetch movies:', error);
+        setErrorMessage('Unable to load movies right now. Please try again.');
         setMovies([]);
       } finally {
         setLoading(false);
@@ -99,10 +146,10 @@ export function TrendingSection({
 
   function handleMovieClick(movie: Movie) {
     setSelected(movie);
-    setIsPlayerOpen(true); // Open video player immediately
+    setIsPlayerOpen(true);
   }
 
-  const getGenreName = (genreId: number | null) => {
+  function getGenreName(genreId: number | null) {
     const genres: Record<number, string> = {
       27: 'Horror',
       28: 'Action',
@@ -116,76 +163,123 @@ export function TrendingSection({
       10749: 'Romance',
       99: 'Documentary',
     };
-    return genreId ? genres[genreId] || 'Filtered' : null;
-  };
 
-  const getSectionTitle = () => {
+    return genreId ? genres[genreId] || 'Filtered' : null;
+  }
+
+  function getSectionTitle() {
+    if (searchQuery.trim()) return `Search: "${searchQuery}"`;
+    if (activeTab === 'home') return 'Trending This Week';
+    if (activeTab === 'new') return 'Upcoming Releases';
+    return 'Most Popular Now';
+  }
+
+  function getSectionSubtitle() {
     if (searchQuery.trim()) {
-      return `Search Results: "${searchQuery}"`;
+      return 'Results matched to your search and active filters.';
     }
-    switch (activeTab) {
-      case 'home':
-        return 'Trending This Week';
-      case 'new':
-        return 'New Releases';
-      case 'popular':
-        return 'Popular Movies';
-      default:
-        return 'Movies';
+
+    if (activeTab === 'home') {
+      return 'Fresh picks that are currently taking over watchlists.';
     }
-  };
+
+    if (activeTab === 'new') {
+      return 'Movies scheduled to release soon, updated by TMDB.';
+    }
+
+    return 'Audience favorites ranked by overall popularity.';
+  }
+
+  const genreName = getGenreName(selectedGenre);
+  const paginationItems = getPaginationItems(totalPages, currentPage);
+  const hasNoResults = !loading && movies.length === 0;
 
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeader}>
-        <h2>{getSectionTitle()}</h2>
-        {selectedGenre && (
-          <span className={styles.genreBadge}>
-            {getGenreName(selectedGenre)}
+        <div>
+          <h2>{getSectionTitle()}</h2>
+          <p className={styles.subtitle}>{getSectionSubtitle()}</p>
+        </div>
+
+        <div className={styles.badges}>
+          {genreName && <span className={styles.genreBadge}>{genreName}</span>}
+          <span className={styles.countBadge}>
+            {loading ? 'Loading...' : `${movies.length} title${movies.length === 1 ? '' : 's'}`}
           </span>
-        )}
+        </div>
       </div>
 
-      {loading && (
-        <div className={styles.loading}>Loading movies...</div>
-      )}
+      {errorMessage && <div className={styles.errorBox}>{errorMessage}</div>}
 
-      {!loading && movies.length === 0 && (
-        <div className={styles.noResults}>
-          {searchQuery.trim() 
-            ? `No movies found for "${searchQuery}"`
-            : 'No movies found'}
+      {loading && (
+        <div className={styles.movieGrid}>
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className={styles.skeletonCard} />
+          ))}
         </div>
       )}
 
-      <div className={styles.movieGrid}>
-        {movies.map((m) => (
-          <MovieCard
-            key={m.id}
-            movie={m}
-            onClick={() => handleMovieClick(m)}
-          />
-        ))}
-      </div>
+      {hasNoResults && (
+        <div className={styles.emptyState}>
+          <h3>No movies found</h3>
+          <p>Try another keyword, or switch tabs to discover more options.</p>
+        </div>
+      )}
 
-      {/* Pagination */}
+      {!loading && movies.length > 0 && (
+        <div className={styles.movieGrid}>
+          {movies.map((movie) => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              onClick={() => handleMovieClick(movie)}
+            />
+          ))}
+        </div>
+      )}
+
       {!loading && movies.length > 0 && totalPages > 1 && (
         <div className={styles.pagination}>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              className={`${styles.pageButton} ${
-                currentPage === page ? styles.active : ''
-              }`}
-              onClick={() => {
-                setCurrentPage(page);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              aria-label={`Go to page ${page}`}
-            >
-              {page}
-            </button>
-          ))}
+          <button
+            className={styles.pageControl}
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={currentPage === 1}
+            aria-label="Previous page"
+          >
+            Prev
+          </button>
+
+          {paginationItems.map((item) =>
+            typeof item === 'number' ? (
+              <button
+                key={item}
+                className={`${styles.pageButton} ${
+                  currentPage === item ? styles.active : ''
+                }`}
+                onClick={() => {
+                  setCurrentPage(item);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                aria-label={`Go to page ${item}`}
+              >
+                {item}
+              </button>
+            ) : (
+              <span key={item} className={styles.ellipsis}>
+                ...
+              </span>
+            ),
+          )}
+
+          <button
+            className={styles.pageControl}
+            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            disabled={currentPage === totalPages}
+            aria-label="Next page"
+          >
+            Next
+          </button>
         </div>
       )}
 
