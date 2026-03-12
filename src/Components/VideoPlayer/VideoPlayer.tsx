@@ -1,11 +1,10 @@
-// src/Components/VideoPlayer/VideoPlayer.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './VideoPlayer.module.css';
-import { blockIframeAds, startAggressiveOverlayRemoval } from '../../utils/adBlocker';
-
-
-
+import {
+  blockIframeAds,
+  startAggressiveOverlayRemoval,
+} from '../../utils/adBlocker';
 
 type VideoPlayerProps = {
   movieId: number;
@@ -16,18 +15,46 @@ type VideoPlayerProps = {
   onClose: () => void;
 };
 
-
-
-
 const serverConfig = {
-  vidnest: 'https://vidnest.fun',
   cinemaos: 'https://cinemaos.tech',
+  vidnest: 'https://vidnest.fun',
   videasy: 'https://player.videasy.net',
   vidora: 'https://vidora.su',
 };
 
+type ServerId = keyof typeof serverConfig;
 
-
+const serverOptions: Array<{
+  id: ServerId;
+  label: string;
+  provider: string;
+  hint: string;
+}> = [
+  {
+    id: 'cinemaos',
+    label: 'Server 1',
+    provider: 'CinemaOS',
+    hint: 'Best default source',
+  },
+  {
+    id: 'vidnest',
+    label: 'Server 2',
+    provider: 'Vidnest',
+    hint: 'Fast alternate stream',
+  },
+  {
+    id: 'videasy',
+    label: 'Server 3',
+    provider: 'Videasy',
+    hint: 'Try if playback stalls',
+  },
+  {
+    id: 'vidora',
+    label: 'Server 4',
+    provider: 'Vidora',
+    hint: 'Last backup option',
+  },
+];
 
 export function VideoPlayer({
   movieId,
@@ -37,42 +64,33 @@ export function VideoPlayer({
   isOpen,
   onClose,
 }: VideoPlayerProps) {
-  const [currentServer, setCurrentServer] =
-    useState<keyof typeof serverConfig>('vidnest');
+  const [currentServer, setCurrentServer] = useState<ServerId>('cinemaos');
   const [overviewExpanded, setOverviewExpanded] = useState(false);
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const popupWindowsRef = useRef<Window[]>([]);
   const overlayIntervalRef = useRef<number | null>(null);
 
-
-
-
-  // Lock body scroll when player is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
+
     return () => {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
 
-
-
-
-  // Start aggressive overlay removal
   useEffect(() => {
     if (!isOpen) return;
 
-    // Inject CSS to hide ad overlays by class/id patterns
     const styleId = 'ad-blocker-styles';
     if (!document.getElementById(styleId)) {
       const style = document.createElement('style');
       style.id = styleId;
       style.textContent = `
-        /* Hide ad overlays by common patterns */
         [class*="ad-block"],
         [class*="adblock"],
         [id*="ad-block"],
@@ -95,45 +113,40 @@ export function VideoPlayer({
       document.head.appendChild(style);
     }
 
-    // Use MutationObserver to catch new elements as they're added
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            const element = node as HTMLElement;
-            const text = element.textContent?.toLowerCase() || '';
-            
-            // Check for Ad Block Wonder and similar
-            if (
-              text.includes('ad block wonder') ||
-              text.includes('adblock wonder') ||
-              text.includes('blocks ads, crushes pop-ups') ||
-              text.includes('we silence the noise') ||
-              text.includes('take out the trash')
-            ) {
-              // Hide immediately
-              element.style.display = 'none';
-              element.style.visibility = 'hidden';
-              element.style.opacity = '0';
-              element.style.pointerEvents = 'none';
-              element.style.height = '0';
-              element.style.width = '0';
-              element.style.overflow = 'hidden';
-              
-              // Also try to remove
-              setTimeout(() => {
-                if (element.parentElement) {
-                  element.remove();
-                }
-              }, 10);
-              console.log('🚫 Blocked ad overlay via MutationObserver');
-            }
+          if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+          const element = node as HTMLElement;
+          const text = element.textContent?.toLowerCase() || '';
+
+          if (
+            text.includes('ad block wonder') ||
+            text.includes('adblock wonder') ||
+            text.includes('blocks ads, crushes pop-ups') ||
+            text.includes('we silence the noise') ||
+            text.includes('take out the trash')
+          ) {
+            element.style.display = 'none';
+            element.style.visibility = 'hidden';
+            element.style.opacity = '0';
+            element.style.pointerEvents = 'none';
+            element.style.height = '0';
+            element.style.width = '0';
+            element.style.overflow = 'hidden';
+
+            setTimeout(() => {
+              if (element.parentElement) {
+                element.remove();
+              }
+            }, 10);
+            console.log('Blocked ad overlay via MutationObserver');
           }
         });
       });
     });
 
-    // Observe the entire document
     observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -149,34 +162,26 @@ export function VideoPlayer({
     };
   }, [isOpen]);
 
-
-
-
-  // Immediate popup removal on player open
   useEffect(() => {
     if (!isOpen) return;
 
-
     const removePopups = () => {
-      // Scan entire document for overlays (ads can appear anywhere)
       const allElements = document.querySelectorAll('*');
-      
+
       allElements.forEach((el) => {
         const htmlEl = el as HTMLElement;
         if (!htmlEl || !htmlEl.parentElement) return;
-        
+
         const text = htmlEl.textContent?.toLowerCase() || '';
         const computedStyles = window.getComputedStyle(htmlEl);
         const position = computedStyles.position;
-        const zIndex = parseInt(computedStyles.zIndex || '0');
+        const zIndex = parseInt(computedStyles.zIndex || '0', 10);
         const display = computedStyles.display;
         const visibility = computedStyles.visibility;
-        
-        // Skip if hidden
+
         if (display === 'none' || visibility === 'hidden') return;
-        
-        // Check for "Ad Block Wonder" and related text patterns
-        const isAdBlockWonder = 
+
+        const isAdBlockWonder =
           text.includes('ad block wonder') ||
           text.includes('adblock wonder') ||
           text.includes('blocks ads, crushes pop-ups') ||
@@ -185,245 +190,140 @@ export function VideoPlayer({
           text.includes('take out the trash') ||
           (text.includes('blocks ads') && text.includes('pop-ups')) ||
           (text.includes('chrome web store') && text.includes('extension'));
-        
-        // Check if it's an overlay (fixed/absolute with high z-index or positioned)
-        const isOverlay = 
+
+        const isOverlay =
           (position === 'fixed' || position === 'absolute') &&
-          (zIndex > 100 || text.length > 20); // Lower threshold for z-index
-        
+          (zIndex > 100 || text.length > 20);
+
         if (isAdBlockWonder && isOverlay) {
           htmlEl.remove();
-          console.log('🗑️ Removed AD BLOCK WONDER popup');
+          console.log('Removed ad block popup');
           return;
         }
-        
-        // Also check for elements with specific ad-related patterns
+
         if (
           (text.includes('continue') && text.includes('extension')) ||
-          (text.includes('install') && (text.includes('browser') || text.includes('extension'))) ||
+          (text.includes('install') &&
+            (text.includes('browser') || text.includes('extension'))) ||
           (text.includes('advertisement') && position !== 'static') ||
           (text.includes('sponsored') && zIndex > 50)
         ) {
           if (position === 'fixed' || position === 'absolute') {
             htmlEl.remove();
-            console.log('🗑️ Removed ad overlay');
+            console.log('Removed ad overlay');
           }
         }
       });
-      
-      // Also check for iframe overlays that might be injected
+
       const iframes = document.querySelectorAll('iframe');
       iframes.forEach((iframe) => {
         try {
-          // Try to access iframe content (may fail due to CORS)
           const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (iframeDoc) {
-            const iframeElements = iframeDoc.querySelectorAll('*');
-            iframeElements.forEach((el) => {
-              const htmlEl = el as HTMLElement;
-              const text = htmlEl.textContent?.toLowerCase() || '';
-              if (
-                text.includes('ad block wonder') ||
-                text.includes('blocks ads, crushes pop-ups') ||
-                (text.includes('extension') && text.includes('chrome'))
-              ) {
-                htmlEl.remove();
-                console.log('🗑️ Removed ad from iframe');
-              }
-            });
-          }
-        } catch (e) {
-          // Cross-origin, can't access - this is expected
+          if (!iframeDoc) return;
+
+          const iframeElements = iframeDoc.querySelectorAll('*');
+          iframeElements.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            const text = htmlEl.textContent?.toLowerCase() || '';
+            if (
+              text.includes('ad block wonder') ||
+              text.includes('blocks ads, crushes pop-ups') ||
+              (text.includes('extension') && text.includes('chrome'))
+            ) {
+              htmlEl.remove();
+              console.log('Removed ad from iframe');
+            }
+          });
+        } catch {
+          // Cross-origin iframe access is expected to fail.
         }
       });
     };
 
-
-    // Run immediately
     removePopups();
-    
-    // Run every 100ms for very aggressive ad removal
     const immediateInterval = setInterval(removePopups, 100);
-
 
     return () => clearInterval(immediateInterval);
   }, [isOpen]);
 
-
-
-
- // Block popups on click/play
-useEffect(() => {
-  if (!isOpen) return;
-
-  const originalWindowOpen = window.open;
-  let clickCount = 0;
-
-  // Override window.open completely - use type assertion
-  (window.open as any) = function (
-    url?: string | URL,
-    _target?: string,
-    _features?: string
-  ): Window | null {
-    const urlString = url ? (typeof url === 'string' ? url : url.toString()) : '';
-
-    console.log('🚫 Blocked popup attempt:', urlString);
-
-    // Block ALL popups from iframe clicks
-    return null;
-  };
-
-  // Intercept clicks on iframe wrapper to prevent popups
-  const handleWrapperClick = () => {
-    clickCount++;
-
-    // First click usually triggers popup
-    if (clickCount === 1) {
-      console.log('🛡️ First click detected - blocking popups');
-
-      // Close any popups that might have opened
-      setTimeout(() => {
-        closeAllPopups();
-      }, 100);
-    }
-  };
-
-  const iframeWrapper = iframeRef.current?.parentElement;
-  if (iframeWrapper) {
-    iframeWrapper.addEventListener('click', handleWrapperClick);
-  }
-
-  return () => {
-    window.open = originalWindowOpen;
-    if (iframeWrapper) {
-      iframeWrapper.removeEventListener('click', handleWrapperClick);
-    }
-  };
-}, [isOpen]);
-
-
-
-
-
-  // Monitor fullscreen changes
   useEffect(() => {
     if (!isOpen) return;
 
+    const originalWindowOpen = window.open;
+    let clickCount = 0;
 
+    window.open = function overrideWindowOpen() {
+      console.log('Blocked popup attempt');
+      return null;
+    } as typeof window.open;
 
+    const handleWrapperClick = () => {
+      clickCount += 1;
+
+      if (clickCount === 1) {
+        console.log('First click detected, blocking popups');
+        setTimeout(() => {
+          closeAllPopups();
+        }, 100);
+      }
+    };
+
+    const iframeWrapper = iframeRef.current?.parentElement;
+    if (iframeWrapper) {
+      iframeWrapper.addEventListener('click', handleWrapperClick);
+    }
+
+    return () => {
+      window.open = originalWindowOpen;
+      if (iframeWrapper) {
+        iframeWrapper.removeEventListener('click', handleWrapperClick);
+      }
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     const handleFullscreenChange = () => {
       const isFullscreen = !!(
         document.fullscreenElement ||
-        (document as any).webkitFullscreenElement ||
-        (document as any).mozFullScreenElement ||
-        (document as any).msFullscreenElement
+        (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement ||
+        (document as Document & { mozFullScreenElement?: Element }).mozFullScreenElement ||
+        (document as Document & { msFullscreenElement?: Element }).msFullscreenElement
       );
 
-
-
-
       if (isFullscreen) {
-        console.log('🎬 Fullscreen - closing popups');
+        console.log('Fullscreen detected, closing popups');
         closeAllPopups();
       }
     };
-
-
-
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     document.addEventListener('mozfullscreenchange', handleFullscreenChange);
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
-
-
-
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener(
-        'webkitfullscreenchange',
-        handleFullscreenChange
-      );
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, [isOpen]);
 
-
-
-
-  // Close all tracked popups
-  function closeAllPopups() {
-    // Close tracked windows
-    popupWindowsRef.current.forEach((popup) => {
-      try {
-        if (popup && !popup.closed) {
-          popup.close();
-          console.log('✅ Closed popup');
-        }
-      } catch (e) {
-        // Ignore errors
-      }
-    });
-    popupWindowsRef.current = [];
-
-
-
-
-    // Also try to close any new windows
-    try {
-      if (window.opener) {
-        window.close();
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-  }
-
-
-
-
-  // Set iframe src when opened / server changes
   useEffect(() => {
     if (!isOpen || !iframeRef.current) return;
 
-
-
-
     const base = serverConfig[currentServer];
-    const path =
-      currentServer === 'cinemaos' ? `/player/${movieId}` : `/movie/${movieId}`;
+    const path = currentServer === 'cinemaos' ? `/player/${movieId}` : `/movie/${movieId}`;
+    setIsIframeLoading(true);
     iframeRef.current.src = base + path;
   }, [isOpen, currentServer, movieId]);
 
-
-
-
-  function handleServerChange(server: keyof typeof serverConfig) {
-    setCurrentServer(server);
-    closeAllPopups();
-  }
-
-
-
-
-  function handleIframeLoad() {
-    if (!iframeRef.current) return;
-    blockIframeAds(iframeRef.current);
-  }
-
-
-
-
-  function handleClose() {
-    closeAllPopups();
-    if (overlayIntervalRef.current) {
-      clearInterval(overlayIntervalRef.current);
-    }
-    onClose();
-  }
+  useEffect(() => {
+    if (!isOpen) return;
+    setOverviewExpanded(false);
+  }, [isOpen, movieId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -439,24 +339,59 @@ useEffect(() => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
+  function closeAllPopups() {
+    popupWindowsRef.current.forEach((popup) => {
+      try {
+        if (popup && !popup.closed) {
+          popup.close();
+          console.log('Closed popup');
+        }
+      } catch {
+        // Ignore popup close errors.
+      }
+    });
+    popupWindowsRef.current = [];
 
+    try {
+      if (window.opener) {
+        window.close();
+      }
+    } catch {
+      // Ignore close window errors.
+    }
+  }
 
+  function handleServerChange(server: ServerId) {
+    setCurrentServer(server);
+    setIsIframeLoading(true);
+    closeAllPopups();
+  }
+
+  function handleIframeLoad() {
+    if (!iframeRef.current) return;
+    setIsIframeLoading(false);
+    blockIframeAds(iframeRef.current);
+  }
+
+  function handleClose() {
+    closeAllPopups();
+    if (overlayIntervalRef.current) {
+      clearInterval(overlayIntervalRef.current);
+    }
+    onClose();
+  }
 
   if (!isOpen) return null;
-
-
-
 
   const shouldShowReadMore = movieOverview && movieOverview.length > 150;
   const displayOverview = overviewExpanded
     ? movieOverview
     : movieOverview?.substring(0, 150) + (shouldShowReadMore ? '...' : '');
-
-
-
+  const activeServer =
+    serverOptions.find((server) => server.id === currentServer) ?? serverOptions[0];
+  const hasOverview = movieOverview.trim().length > 0;
 
   return createPortal(
-    (
     <div className={styles.playerArea}>
       <button
         className={`${styles.closeBtn} ${styles.floatingCloseBtn}`}
@@ -468,58 +403,90 @@ useEffect(() => {
 
       <div className={styles.playerContainer}>
         <div className={styles.playerHeader}>
-          <h2 className={styles.playerTitle}>{movieTitle}</h2>
+          <div className={styles.titleBlock}>
+            <span className={styles.kicker}>Streaming room</span>
+            <h2 className={styles.playerTitle}>{movieTitle}</h2>
+            <p className={styles.playerSubtitle}>
+              Clean playback view with quick server switching if the stream hangs or stays
+              blank.
+            </p>
+          </div>
         </div>
 
+        <div className={styles.stagePanel}>
+          <div className={styles.stageHeader}>
+            <div className={styles.stageBadge}>Now playing</div>
+            <p className={styles.stageNote}>
+              If the player takes too long to load, switch to another source below.
+            </p>
+          </div>
 
+          <div className={styles.iframeWrapper}>
+            {isIframeLoading && (
+              <div className={styles.loadingOverlay}>
+                <div className={styles.loadingPulse} aria-hidden="true" />
+                <span className={styles.loadingTitle}>Loading stream</span>
+                <span className={styles.loadingHint}>
+                  Preparing secure stream for {movieTitle}
+                </span>
+              </div>
+            )}
 
-
-        <div className={styles.iframeWrapper}>
-          <iframe
-            ref={iframeRef}
-            className={styles.videoIframe}
-            src=""
-            title={movieTitle}
-            allowFullScreen
-            sandbox="allow-scripts allow-same-origin"
-            loading="lazy"
-            frameBorder={0}
-            onLoad={handleIframeLoad}
-          />
+            <iframe
+              ref={iframeRef}
+              className={styles.videoIframe}
+              src=""
+              title={movieTitle}
+              allowFullScreen
+              sandbox="allow-scripts allow-same-origin"
+              loading="lazy"
+              frameBorder={0}
+              onLoad={handleIframeLoad}
+            />
+          </div>
         </div>
 
+        <div className={styles.serverPanel}>
+          <div className={styles.serverPanelHeader}>
+            <div>
+              <h3 className={styles.serverPanelTitle}>Choose a source</h3>
+              <p className={styles.serverPanelText}>
+                Start with Server 1. Move to another option if playback freezes, buffers, or
+                opens blank.
+              </p>
+            </div>
+          </div>
 
-
-
-        <div className={styles.serverSwitcher}>
-          {Object.keys(serverConfig).map((server, index) => (
-            <button
-              key={server}
-              className={`${styles.serverBtn} ${
-                currentServer === server ? styles.active : ''
-              }`}
-              onClick={() =>
-                handleServerChange(server as keyof typeof serverConfig)
-              }
-            >
-              Server {index + 1}
-            </button>
-          ))}
+          <div className={styles.serverSwitcher}>
+            {serverOptions.map((server) => (
+              <button
+                key={server.id}
+                className={`${styles.serverBtn} ${
+                  currentServer === server.id ? styles.active : ''
+                }`}
+                onClick={() => handleServerChange(server.id)}
+              >
+                <span className={styles.serverLabel}>{server.label}</span>
+                <span className={styles.serverProvider}>{server.provider}</span>
+                <span className={styles.serverHint}>{server.hint}</span>
+              </button>
+            ))}
+          </div>
         </div>
-
-
-
 
         <div className={styles.detailsContainer}>
-          <img
-            src={moviePoster}
-            alt={movieTitle}
-            className={styles.detailsPoster}
-          />
+          <img src={moviePoster} alt={movieTitle} className={styles.detailsPoster} />
+
           <div className={styles.detailsText}>
+            <div className={styles.detailPills}>
+              <span className={styles.detailPill}>Movie</span>
+              <span className={styles.detailPill}>{activeServer.label}</span>
+              <span className={styles.detailPill}>TMDB #{movieId}</span>
+            </div>
+            <h3 className={styles.detailsTitle}>{movieTitle}</h3>
             <p className={styles.detailsOverview}>
-              {displayOverview}
-              {shouldShowReadMore && (
+              {hasOverview ? displayOverview : 'No overview is available for this title yet.'}
+              {hasOverview && shouldShowReadMore && (
                 <button
                   className={styles.readMoreBtn}
                   onClick={() => setOverviewExpanded(!overviewExpanded)}
@@ -529,11 +496,19 @@ useEffect(() => {
               )}
             </p>
           </div>
+
+          <div className={styles.tipCard}>
+            <span className={styles.tipLabel}>Playback tips</span>
+            <p className={styles.tipText}>
+              Use fullscreen after the stream starts to reduce accidental overlays.
+            </p>
+            <p className={styles.tipText}>
+              If one server fails, switch sources instead of reloading the whole page.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-    ),
+    </div>,
     document.body,
   );
 }
-
