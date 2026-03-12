@@ -5,7 +5,7 @@ import { VideoPlayer } from '../VideoPlayer/VideoPlayer';
 
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY as string;
 const TMDB_BASE_URL = import.meta.env.VITE_TMDB_BASE_URL as string;
-const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL as string;
+const IMAGE_BASE_URL = import.meta.env.VITE_TMDB_IMAGE_BASE_URL as string;
 
 type TrendingSectionProps = {
   activeTab: 'home' | 'new' | 'popular';
