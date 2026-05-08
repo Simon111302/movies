@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap');
 
 :root {
-  --bg-page: #080b14;
+  --bg-page: #000;
   --bg-surface: #121a2a;
   --bg-surface-soft: #1a243a;
   --bg-elevated: #223252;
@@ -38,7 +38,7 @@ body {
   font-family: 'Manrope', 'Segoe UI', Tahoma, sans-serif;
   line-height: 1.5;
   color: var(--text-main);
-  background: var(--bg-page);
+  background: #000;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
