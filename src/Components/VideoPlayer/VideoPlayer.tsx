@@ -15,46 +15,23 @@ type VideoPlayerProps = {
   onClose: () => void;
 };
 
-const serverConfig = {
-  cinemaos: 'https://cinemaos.tech',
-  vidnest: 'https://vidnest.fun',
-  videasy: 'https://player.videasy.net',
-  vidora: 'https://vidora.su',
-};
+const CINEMAOS_EMBED_URL_TEMPLATE =
+  (import.meta.env.VITE_SERVER_1_EMBED_URL_TEMPLATE as string | undefined) ||
+  'https://cinemaos.tech/player/{movieId}';
+const PLAYER_LOAD_TIMEOUT_MS = 15000;
 
-type ServerId = keyof typeof serverConfig;
+function buildPlayerUrl(movieId: number, reloadAttempt: number) {
+  const playerUrl = CINEMAOS_EMBED_URL_TEMPLATE.replaceAll(
+    '{movieId}',
+    String(movieId),
+  ).replaceAll('{tmdbId}', String(movieId));
 
-const serverOptions: Array<{
-  id: ServerId;
-  label: string;
-  provider: string;
-  hint: string;
-}> = [
-  {
-    id: 'cinemaos',
-    label: 'Server 1',
-    provider: 'CinemaOS',
-    hint: 'Best default source',
-  },
-  {
-    id: 'vidnest',
-    label: 'Server 2',
-    provider: 'Vidnest',
-    hint: 'Fast alternate stream',
-  },
-  {
-    id: 'videasy',
-    label: 'Server 3',
-    provider: 'Videasy',
-    hint: 'Try if playback stalls',
-  },
-  {
-    id: 'vidora',
-    label: 'Server 4',
-    provider: 'Vidora',
-    hint: 'Last backup option',
-  },
-];
+  if (reloadAttempt === 0) {
+    return playerUrl;
+  }
+
+  return `${playerUrl}${playerUrl.includes('?') ? '&' : '?'}reload=${reloadAttempt}`;
+}
 
 export function VideoPlayer({
   movieId,
@@ -64,12 +41,15 @@ export function VideoPlayer({
   isOpen,
   onClose,
 }: VideoPlayerProps) {
-  const [currentServer, setCurrentServer] = useState<ServerId>('cinemaos');
   const [overviewExpanded, setOverviewExpanded] = useState(false);
   const [isIframeLoading, setIsIframeLoading] = useState(true);
+  const [iframeSrc, setIframeSrc] = useState('');
+  const [playerMessage, setPlayerMessage] = useState('');
+  const [reloadAttempt, setReloadAttempt] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const popupWindowsRef = useRef<Window[]>([]);
   const overlayIntervalRef = useRef<number | null>(null);
+  const loadTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -312,13 +292,33 @@ export function VideoPlayer({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !iframeRef.current) return;
+    if (!isOpen) return;
 
-    const base = serverConfig[currentServer];
-    const path = currentServer === 'cinemaos' ? `/player/${movieId}` : `/movie/${movieId}`;
     setIsIframeLoading(true);
-    iframeRef.current.src = base + path;
-  }, [isOpen, currentServer, movieId]);
+    setPlayerMessage('');
+    setIframeSrc(buildPlayerUrl(movieId, reloadAttempt));
+  }, [isOpen, movieId, reloadAttempt]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setReloadAttempt(0);
+  }, [isOpen, movieId]);
+
+  useEffect(() => {
+    if (!isOpen || !isIframeLoading || !iframeSrc) return;
+
+    loadTimeoutRef.current = window.setTimeout(() => {
+      setIsIframeLoading(false);
+      setPlayerMessage('CinemaOS is taking too long to respond. Reload the player and try again.');
+    }, PLAYER_LOAD_TIMEOUT_MS);
+
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen, isIframeLoading, iframeSrc]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -361,22 +361,36 @@ export function VideoPlayer({
     }
   }
 
-  function handleServerChange(server: ServerId) {
-    setCurrentServer(server);
-    setIsIframeLoading(true);
-    closeAllPopups();
-  }
-
   function handleIframeLoad() {
     if (!iframeRef.current) return;
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = null;
+    }
     setIsIframeLoading(false);
+    setPlayerMessage('');
     blockIframeAds(iframeRef.current);
+  }
+
+  function handleIframeError() {
+    setIsIframeLoading(false);
+    setPlayerMessage('CinemaOS could not load this movie. Reload the player and try again.');
+  }
+
+  function handleReloadPlayer() {
+    closeAllPopups();
+    setPlayerMessage('');
+    setIsIframeLoading(true);
+    setReloadAttempt((attempt) => attempt + 1);
   }
 
   function handleClose() {
     closeAllPopups();
     if (overlayIntervalRef.current) {
       clearInterval(overlayIntervalRef.current);
+    }
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
     }
     onClose();
   }
@@ -387,8 +401,6 @@ export function VideoPlayer({
   const displayOverview = overviewExpanded
     ? movieOverview
     : movieOverview?.substring(0, 150) + (shouldShowReadMore ? '...' : '');
-  const activeServer =
-    serverOptions.find((server) => server.id === currentServer) ?? serverOptions[0];
   const hasOverview = movieOverview.trim().length > 0;
 
   return createPortal(
@@ -407,8 +419,7 @@ export function VideoPlayer({
             <span className={styles.kicker}>Streaming room</span>
             <h2 className={styles.playerTitle}>{movieTitle}</h2>
             <p className={styles.playerSubtitle}>
-              Clean playback view with quick server switching if the stream hangs or stays
-              blank.
+              CinemaOS loads the selected movie using its TMDB ID.
             </p>
           </div>
         </div>
@@ -416,61 +427,55 @@ export function VideoPlayer({
         <div className={styles.stagePanel}>
           <div className={styles.stageHeader}>
             <div className={styles.stageBadge}>Now playing</div>
-            <p className={styles.stageNote}>
-              If the player takes too long to load, switch to another source below.
-            </p>
+            <div className={styles.stageActions}>
+              <p className={styles.stageNote}>
+                Powered by the configured CinemaOS player.
+              </p>
+              {iframeSrc && (
+                <button className={styles.reloadButton} onClick={handleReloadPlayer}>
+                  Reload player
+                </button>
+              )}
+            </div>
           </div>
 
           <div className={styles.iframeWrapper}>
             {isIframeLoading && (
               <div className={styles.loadingOverlay}>
                 <div className={styles.loadingPulse} aria-hidden="true" />
-                <span className={styles.loadingTitle}>Loading stream</span>
+                <span className={styles.loadingTitle}>Loading video</span>
                 <span className={styles.loadingHint}>
-                  Preparing secure stream for {movieTitle}
+                  Preparing video for {movieTitle}
                 </span>
               </div>
             )}
 
-            <iframe
-              ref={iframeRef}
-              className={styles.videoIframe}
-              src=""
-              title={movieTitle}
-              allowFullScreen
-              sandbox="allow-scripts allow-same-origin"
-              loading="lazy"
-              frameBorder={0}
-              onLoad={handleIframeLoad}
-            />
-          </div>
-        </div>
+            {playerMessage && (
+              <div className={styles.playerMessage}>
+                <span>{playerMessage}</span>
+                {iframeSrc && (
+                  <button className={styles.reloadButton} onClick={handleReloadPlayer}>
+                    Reload player
+                  </button>
+                )}
+              </div>
+            )}
 
-        <div className={styles.serverPanel}>
-          <div className={styles.serverPanelHeader}>
-            <div>
-              <h3 className={styles.serverPanelTitle}>Choose a source</h3>
-              <p className={styles.serverPanelText}>
-                Start with Server 1. Move to another option if playback freezes, buffers, or
-                opens blank.
-              </p>
-            </div>
-          </div>
-
-          <div className={styles.serverSwitcher}>
-            {serverOptions.map((server) => (
-              <button
-                key={server.id}
-                className={`${styles.serverBtn} ${
-                  currentServer === server.id ? styles.active : ''
-                }`}
-                onClick={() => handleServerChange(server.id)}
-              >
-                <span className={styles.serverLabel}>{server.label}</span>
-                <span className={styles.serverProvider}>{server.provider}</span>
-                <span className={styles.serverHint}>{server.hint}</span>
-              </button>
-            ))}
+            {iframeSrc && (
+              <iframe
+                ref={iframeRef}
+                className={styles.videoIframe}
+                src={iframeSrc}
+                title={movieTitle}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation"
+                loading="lazy"
+                frameBorder={0}
+                onLoad={handleIframeLoad}
+                onError={handleIframeError}
+              />
+            )}
           </div>
         </div>
 
@@ -480,7 +485,7 @@ export function VideoPlayer({
           <div className={styles.detailsText}>
             <div className={styles.detailPills}>
               <span className={styles.detailPill}>Movie</span>
-              <span className={styles.detailPill}>{activeServer.label}</span>
+              <span className={styles.detailPill}>CinemaOS</span>
               <span className={styles.detailPill}>TMDB #{movieId}</span>
             </div>
             <h3 className={styles.detailsTitle}>{movieTitle}</h3>
@@ -500,10 +505,10 @@ export function VideoPlayer({
           <div className={styles.tipCard}>
             <span className={styles.tipLabel}>Playback tips</span>
             <p className={styles.tipText}>
-              Use fullscreen after the stream starts to reduce accidental overlays.
+              Use fullscreen after the video starts for a larger viewing area.
             </p>
             <p className={styles.tipText}>
-              If one server fails, switch sources instead of reloading the whole page.
+              If playback stalls, reload the CinemaOS player instead of the whole page.
             </p>
           </div>
         </div>

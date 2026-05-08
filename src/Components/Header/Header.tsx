@@ -70,13 +70,13 @@ export function Header({
             className={`${styles.navLink} ${activeTab === 'home' ? styles.active : ''}`}
             onClick={() => onTabChange('home')}
           >
-            Discover
+            Now Showing
           </button>
           <button
             className={`${styles.navLink} ${activeTab === 'new' ? styles.active : ''}`}
             onClick={() => onTabChange('new')}
           >
-            Upcoming
+            Latest
           </button>
           <button
             className={`${styles.navLink} ${activeTab === 'popular' ? styles.active : ''}`}

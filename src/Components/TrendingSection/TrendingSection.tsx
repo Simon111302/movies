@@ -27,6 +27,10 @@ type TmdbResponse = {
   total_pages?: number;
 };
 
+function formatDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 function getPaginationItems(totalPages: number, currentPage: number) {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -78,6 +82,11 @@ export function TrendingSection({
 
       try {
         let url = '';
+        const today = new Date();
+        const recentReleaseStart = new Date(today);
+        recentReleaseStart.setDate(today.getDate() - 60);
+        const latestReleaseStart = new Date(today);
+        latestReleaseStart.setDate(today.getDate() - 180);
 
         if (searchQuery.trim()) {
           const params = new URLSearchParams({
@@ -96,8 +105,18 @@ export function TrendingSection({
             api_key: API_KEY,
             with_genres: String(selectedGenre),
             page: String(currentPage),
-            sort_by: activeTab === 'new' ? 'release_date.desc' : 'popularity.desc',
+            sort_by: activeTab === 'new' ? 'primary_release_date.desc' : 'popularity.desc',
           });
+
+          if (activeTab === 'home') {
+            params.append('primary_release_date.gte', formatDate(recentReleaseStart));
+            params.append('primary_release_date.lte', formatDate(today));
+          }
+
+          if (activeTab === 'new') {
+            params.append('primary_release_date.gte', formatDate(latestReleaseStart));
+            params.append('primary_release_date.lte', formatDate(today));
+          }
 
           url = `${TMDB_BASE_URL}/discover/movie?${params.toString()}`;
         } else {
@@ -107,9 +126,12 @@ export function TrendingSection({
           });
 
           if (activeTab === 'home') {
-            url = `${TMDB_BASE_URL}/trending/movie/week?${params.toString()}`;
+            url = `${TMDB_BASE_URL}/movie/now_playing?${params.toString()}`;
           } else if (activeTab === 'new') {
-            url = `${TMDB_BASE_URL}/movie/upcoming?${params.toString()}`;
+            params.set('sort_by', 'primary_release_date.desc');
+            params.set('primary_release_date.gte', formatDate(latestReleaseStart));
+            params.set('primary_release_date.lte', formatDate(today));
+            url = `${TMDB_BASE_URL}/discover/movie?${params.toString()}`;
           } else {
             url = `${TMDB_BASE_URL}/movie/popular?${params.toString()}`;
           }
@@ -169,8 +191,8 @@ export function TrendingSection({
 
   function getSectionTitle() {
     if (searchQuery.trim()) return `Search: "${searchQuery}"`;
-    if (activeTab === 'home') return 'Trending This Week';
-    if (activeTab === 'new') return 'Upcoming Releases';
+    if (activeTab === 'home') return 'Now Showing';
+    if (activeTab === 'new') return 'Latest Releases';
     return 'Most Popular Now';
   }
 
@@ -180,11 +202,11 @@ export function TrendingSection({
     }
 
     if (activeTab === 'home') {
-      return 'Fresh picks that are currently taking over watchlists.';
+      return 'Recently updated movies that are currently showing, powered by TMDB.';
     }
 
     if (activeTab === 'new') {
-      return 'Movies scheduled to release soon, updated by TMDB.';
+      return 'Recently released movies, updated by TMDB.';
     }
 
     return 'Audience favorites ranked by overall popularity.';
