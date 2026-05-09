@@ -105,6 +105,16 @@ const WHITELIST_SELECTORS = [
   'closeButton',
 ];
 
+type AdBlockableFetch = typeof window.fetch & {
+  __adBlockerOverridden?: boolean;
+};
+
+type AdBlockableXhrOpen = typeof XMLHttpRequest.prototype.open & {
+  __adBlockerOverridden?: boolean;
+};
+
+const blockedScriptSrcByElement = new WeakMap<HTMLScriptElement, string>();
+
 /**
  * Initialize ad blocker
  */
@@ -128,10 +138,13 @@ export function initAdBlocker() {
  * Block ad-related scripts from loading
  */
 function blockAdScripts() {
-  const originalCreateElement = document.createElement;
+  const originalCreateElement = document.createElement.bind(document);
 
-  document.createElement = function (tagName: string, options?: any) {
-    const element = originalCreateElement.call(document, tagName, options);
+  document.createElement = function (
+    tagName: string,
+    options?: ElementCreationOptions,
+  ) {
+    const element = originalCreateElement(tagName, options);
 
     if (tagName.toLowerCase() === 'script') {
       const script = element as HTMLScriptElement;
@@ -152,23 +165,23 @@ function blockAdScripts() {
           set: function (value: string) {
             if (isAdDomain(value)) {
               console.log('Blocked ad script:', value);
-              (script as any)._src = '';
+              blockedScriptSrcByElement.set(script, '');
               return; // Block the script
             }
-            (script as any)._src = value;
-            originalSetAttribute.call(this, 'src', value);
+            blockedScriptSrcByElement.set(script, value);
+            originalSetAttribute('src', value);
           },
           get: function () {
-            return (script as any)._src || '';
+            return blockedScriptSrcByElement.get(script) || '';
           },
         });
-      } catch (e) {
+      } catch {
         // Property might already be defined, ignore
       }
     }
 
     return element;
-  };
+  } as typeof document.createElement;
 }
 
 /**
@@ -176,9 +189,10 @@ function blockAdScripts() {
  */
 function blockAdRequests() {
   // Block fetch requests to ad domains
-  if (!(window.fetch as any).__adBlockerOverridden) {
+  const currentFetch = window.fetch as AdBlockableFetch;
+  if (!currentFetch.__adBlockerOverridden) {
     const originalFetch = window.fetch;
-    window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+    const blockedFetch = function (input: RequestInfo | URL, init?: RequestInit) {
       const url =
         typeof input === 'string'
           ? input
@@ -192,14 +206,17 @@ function blockAdRequests() {
       }
 
       return originalFetch.call(window, input, init);
-    };
-    (window.fetch as any).__adBlockerOverridden = true;
+    } as AdBlockableFetch;
+    blockedFetch.__adBlockerOverridden = true;
+    window.fetch = blockedFetch;
   }
 
   // Block XMLHttpRequest to ad domains
-  if (!(XMLHttpRequest.prototype.open as any).__adBlockerOverridden) {
+  const currentXhrOpen = XMLHttpRequest.prototype.open as AdBlockableXhrOpen;
+  if (!currentXhrOpen.__adBlockerOverridden) {
     const originalOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (
+    const blockedXhrOpen = function (
+      this: XMLHttpRequest,
       method: string,
       url: string | URL,
       async?: boolean,
@@ -222,8 +239,9 @@ function blockAdRequests() {
         username ?? null,
         password ?? null
       );
-    };
-    (XMLHttpRequest.prototype.open as any).__adBlockerOverridden = true;
+    } as AdBlockableXhrOpen;
+    blockedXhrOpen.__adBlockerOverridden = true;
+    XMLHttpRequest.prototype.open = blockedXhrOpen;
   }
 }
 
@@ -260,7 +278,7 @@ function removeAdElements() {
             console.log('Removed ad element:', selector);
           }
         });
-      } catch (e) {
+      } catch {
         // Ignore invalid selectors
       }
     });
@@ -364,7 +382,7 @@ function observeAdElements() {
                   console.log('Removed ad element from new content');
                 }
               });
-            } catch (e) {
+            } catch {
               // Ignore errors
             }
           });
@@ -454,12 +472,12 @@ export function blockIframeAds(iframe: HTMLIFrameElement) {
               element.remove();
             }
           });
-        } catch (e) {
+        } catch {
           // Ignore errors
         }
       });
     }
-  } catch (e) {
+  } catch {
     // Cross-origin iframe, can't access content
     // This is expected for most video players
   }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './VideoPlayer.module.css';
 import {
@@ -19,6 +19,10 @@ const CINEMAOS_EMBED_URL_TEMPLATE =
   (import.meta.env.VITE_SERVER_1_EMBED_URL_TEMPLATE as string | undefined) ||
   'https://cinemaos.tech/player/{movieId}';
 const PLAYER_LOAD_TIMEOUT_MS = 15000;
+const PLAYER_IFRAME_ALLOW_POLICY =
+  'autoplay; encrypted-media; fullscreen; picture-in-picture';
+const PLAYER_IFRAME_SANDBOX_POLICY =
+  'allow-scripts allow-same-origin allow-forms allow-modals allow-presentation';
 
 function buildPlayerUrl(movieId: number, reloadAttempt: number) {
   const playerUrl = CINEMAOS_EMBED_URL_TEMPLATE.replaceAll(
@@ -50,6 +54,39 @@ export function VideoPlayer({
   const popupWindowsRef = useRef<Window[]>([]);
   const overlayIntervalRef = useRef<number | null>(null);
   const loadTimeoutRef = useRef<number | null>(null);
+
+  const closeAllPopups = useCallback(() => {
+    popupWindowsRef.current.forEach((popup) => {
+      try {
+        if (popup && !popup.closed) {
+          popup.close();
+          console.log('Closed popup');
+        }
+      } catch {
+        // Ignore popup close errors.
+      }
+    });
+    popupWindowsRef.current = [];
+
+    try {
+      if (window.opener) {
+        window.close();
+      }
+    } catch {
+      // Ignore close window errors.
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    closeAllPopups();
+    if (overlayIntervalRef.current) {
+      clearInterval(overlayIntervalRef.current);
+    }
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+    onClose();
+  }, [closeAllPopups, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -248,18 +285,41 @@ export function VideoPlayer({
       }
     };
 
+    const blockExternalAnchorNavigation = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const anchor = target.closest('a[href]');
+      if (!anchor) return;
+
+      const href = anchor.getAttribute('href') || '';
+      const url = new URL(href, window.location.href);
+      const opensAwayFromApp =
+        anchor.getAttribute('target') === '_blank' ||
+        url.origin !== window.location.origin ||
+        !['http:', 'https:', ''].includes(url.protocol);
+
+      if (opensAwayFromApp) {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log('Blocked external navigation attempt:', url.href);
+      }
+    };
+
     const iframeWrapper = iframeRef.current?.parentElement;
     if (iframeWrapper) {
       iframeWrapper.addEventListener('click', handleWrapperClick);
     }
+    document.addEventListener('click', blockExternalAnchorNavigation, true);
 
     return () => {
       window.open = originalWindowOpen;
       if (iframeWrapper) {
         iframeWrapper.removeEventListener('click', handleWrapperClick);
       }
+      document.removeEventListener('click', blockExternalAnchorNavigation, true);
     };
-  }, [isOpen]);
+  }, [isOpen, closeAllPopups]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -289,19 +349,28 @@ export function VideoPlayer({
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
-  }, [isOpen]);
+  }, [isOpen, closeAllPopups]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    setIsIframeLoading(true);
-    setPlayerMessage('');
-    setIframeSrc(buildPlayerUrl(movieId, reloadAttempt));
+    const updatePlayerState = window.setTimeout(() => {
+      setIsIframeLoading(true);
+      setPlayerMessage('');
+      setIframeSrc(buildPlayerUrl(movieId, reloadAttempt));
+    }, 0);
+
+    return () => clearTimeout(updatePlayerState);
   }, [isOpen, movieId, reloadAttempt]);
 
   useEffect(() => {
     if (!isOpen) return;
-    setReloadAttempt(0);
+
+    const resetReloadAttempt = window.setTimeout(() => {
+      setReloadAttempt(0);
+    }, 0);
+
+    return () => clearTimeout(resetReloadAttempt);
   }, [isOpen, movieId]);
 
   useEffect(() => {
@@ -322,7 +391,12 @@ export function VideoPlayer({
 
   useEffect(() => {
     if (!isOpen) return;
-    setOverviewExpanded(false);
+
+    const resetOverview = window.setTimeout(() => {
+      setOverviewExpanded(false);
+    }, 0);
+
+    return () => clearTimeout(resetOverview);
   }, [isOpen, movieId]);
 
   useEffect(() => {
@@ -337,29 +411,7 @@ export function VideoPlayer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
-
-  function closeAllPopups() {
-    popupWindowsRef.current.forEach((popup) => {
-      try {
-        if (popup && !popup.closed) {
-          popup.close();
-          console.log('Closed popup');
-        }
-      } catch {
-        // Ignore popup close errors.
-      }
-    });
-    popupWindowsRef.current = [];
-
-    try {
-      if (window.opener) {
-        window.close();
-      }
-    } catch {
-      // Ignore close window errors.
-    }
-  }
+  }, [isOpen, handleClose]);
 
   function handleIframeLoad() {
     if (!iframeRef.current) return;
@@ -382,17 +434,6 @@ export function VideoPlayer({
     setPlayerMessage('');
     setIsIframeLoading(true);
     setReloadAttempt((attempt) => attempt + 1);
-  }
-
-  function handleClose() {
-    closeAllPopups();
-    if (overlayIntervalRef.current) {
-      clearInterval(overlayIntervalRef.current);
-    }
-    if (loadTimeoutRef.current) {
-      clearTimeout(loadTimeoutRef.current);
-    }
-    onClose();
   }
 
   if (!isOpen) return null;
@@ -467,9 +508,10 @@ export function VideoPlayer({
                 className={styles.videoIframe}
                 src={iframeSrc}
                 title={movieTitle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
+                allow={PLAYER_IFRAME_ALLOW_POLICY}
                 allowFullScreen
-                sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-presentation"
+                sandbox={PLAYER_IFRAME_SANDBOX_POLICY}
+                referrerPolicy="no-referrer"
                 loading="lazy"
                 frameBorder={0}
                 onLoad={handleIframeLoad}
